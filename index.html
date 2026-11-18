@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Arcade</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0 auto;padding:16px;max-width:560px;background:#111;color:#eee}
+h1{margin-top:8px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+a.tile{display:block;padding:24px 12px;border-radius:12px;background:#1f2a24;color:#fff;text-decoration:none;text-align:center;font-weight:600}
+a.tile:hover{background:#2c3d33}
+.soon{opacity:.45;pointer-events:none}
+</style>
+</head>
+<body>
+<h1>Arcade</h1>
+<p>Pick a game. Host creates a room and shares the PIN; everyone else joins with it.</p>
+<div class="grid">
+  <a class="tile" href="games/scum/">Scum</a>
+  <a class="tile soon" href="#">More games soon</a>
+</div>
+</body>
+</html>
