@@ -1,11 +1,11 @@
 // Scum UI and networking. The host runs the engine; clients send moves and render what the host sends.
-import { createGame, newRound, act, botChoice, view, RANKS, SUITS } from './engine.js';
+import { createGame, newRound, act, botChoice, view, RANKS, SUITS } from './engine.js?v=1794962715';
 
 const $ = id => document.getElementById(id);
 // Load networking separately so the buttons still work (and show errors) if it fails.
 let libs = null;
 function showErr(t) { $('err').textContent = t; }
-import('../../lib/lobby.js')
+import('../../lib/lobby.js?v=1794962715')
   .then(m => { libs = m; })
   .catch(e => showErr('Networking failed to load: ' + e.message + '. Check your connection and reload.'));
 const BOT_NAMES = ['Ada', 'Ben', 'Cy'];
