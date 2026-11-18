@@ -134,11 +134,14 @@ function sendMove(kind) {
   }
 }
 
-window.hostGame = hostGame;
-window.joinGame = joinGame;
-window.startGame = startGame;
-window.playSel = () => sendMove('play');
-window.passTurn = () => sendMove('pass');
+const safe = fn => (...a) => { try { showErr(''); return fn(...a); } catch (e) { showErr('Error: ' + (e && e.message || e)); console.error(e); } };
+window.hostGame = safe(hostGame);
+window.joinGame = safe(joinGame);
+window.startGame = safe(startGame);
+window.playSel = safe(() => sendMove('play'));
+window.passTurn = safe(() => sendMove('pass'));
+window.addEventListener('error', e => showErr('Error: ' + e.message));
+window.addEventListener('unhandledrejection', e => showErr('Error: ' + (e.reason && e.reason.message || e.reason)));
 window.pick = pick;
 
 // ---------- rendering ----------
