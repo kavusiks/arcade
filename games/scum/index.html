@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Scum · Arcade</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0 auto;padding:12px;max-width:560px;background:#15532f;color:#fff}
+a{color:#ffd54a}
+.screen{display:none}.screen.on{display:block}
+input{font-size:18px;padding:10px;border-radius:8px;border:0;width:100%;box-sizing:border-box;margin:4px 0}
+button{padding:12px 16px;margin:6px 2px;border-radius:8px;border:0;font-size:16px;background:#ffd54a;color:#111}
+button:disabled{opacity:.4}
+.row{margin:8px 0}.muted{opacity:.75;font-size:14px}
+.pin{font-size:42px;letter-spacing:8px;font-weight:700;text-align:center;margin:8px 0}
+.card{display:inline-block;width:50px;height:70px;margin:3px;border-radius:7px;background:#fff;color:#111;font-weight:700;text-align:center;line-height:1.2;padding-top:12px;box-sizing:border-box;border:2px solid transparent;cursor:pointer;user-select:none;font-size:15px}
+.card.red{color:#c00}.card.sel{border-color:#ffd54a;transform:translateY(-8px)}
+#pile .card{cursor:default}
+#log{font-size:13px;opacity:.85;min-height:3em;background:#0c3a20;padding:6px;border-radius:6px}
+</style>
+</head>
+<body>
+<h2>Scum</h2>
+
+<div id="join" class="screen on">
+  <label>Your name</label>
+  <input id="name" maxlength="20" placeholder="Name">
+  <div class="row"><button onclick="hostGame()">Host a game</button></div>
+  <label>Or join with a PIN</label>
+  <input id="pinIn" inputmode="numeric" maxlength="4" placeholder="4-digit PIN">
+  <div class="row"><button onclick="joinGame()">Join</button></div>
+  <p class="muted">Up to 4 players. Empty seats are filled with bots when the host starts.</p>
+</div>
+
+<div id="lobby" class="screen">
+  <div class="muted">Share this PIN:</div>
+  <div class="pin" id="pinShow"></div>
+  <div id="roster" class="row"></div>
+  <div class="row"><button id="start" onclick="startGame()">Start game</button></div>
+</div>
+
+<div id="waiting" class="screen">
+  <p>Joined. Waiting for the host to start…</p>
+  <div id="roster2" class="row"></div>
+</div>
+
+<div id="game" class="screen">
+  <div id="seats"></div>
+  <div class="row"><b>Table:</b> <span id="pile"></span></div>
+  <div id="msg" class="row"></div>
+  <div class="row"><b>Your hand</b></div>
+  <div id="hand"></div>
+  <div class="row">
+    <button id="play" onclick="playSel()">Play selected</button>
+    <button id="pass" onclick="passTurn()">Pass</button>
+  </div>
+  <div id="log"></div>
+</div>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>
