@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Nightfall · Arcade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../lib/theme.css?v=1795041321">
+<style>
+/* Night: deep indigo under a cold moon. Day: dusty dawn. */
+:root { --table-1: #232a5c; --table-2: #0b0e24; --moon: #cfd8ff; --blood: #e0475b; }
+body { transition: background .6s ease; }
+body[data-phase="day"] { --table-1: #8a5a62; --table-2: #2a1c2e; background: radial-gradient(120% 70% at 50% 0%, #c98a6b, #6b4155 45%, #2a1c2e 85%) fixed; }
+body[data-phase="night"] { background: radial-gradient(70% 40% at 80% 6%, rgba(207,216,255,.18), transparent 60%), radial-gradient(120% 70% at 50% 0%, #232a5c, #0b0e24 75%) fixed; }
+
+.phase { display: flex; align-items: center; gap: 14px; margin: 6px 0 10px; }
+.phase .icon { display: grid; place-items: center; width: 54px; height: 54px; flex: none; border-radius: 50%; font-size: 30px; color: #1b1f3b; background: var(--moon); box-shadow: 0 0 30px rgba(207,216,255,.5); }
+body[data-phase="day"] .phase .icon { background: #ffd48a; box-shadow: 0 0 30px rgba(255,212,138,.7); }
+.phase .big { margin: 0; }
+#news { padding: 12px 14px; border-radius: 14px; background: rgba(0,0,0,.28); border-left: 4px solid var(--blood); font-weight: 700; }
+
+/* Role card: sealed until you open it */
+.rolecard { position: relative; margin: 10px 0; padding: 16px 16px 54px; border-radius: 20px; text-align: center; background: #f0ecff; color: #1b1f3b; box-shadow: 0 18px 30px -18px rgba(0,0,0,.9); }
+.rolecard.sealed { background: repeating-linear-gradient(-45deg, #dcd6f5 0 10px, #e8e3fb 10px 20px); }
+.rolecard .muted { color: #5b5878; }
+.rolecard .big { color: #1b1f3b; font-size: 32px; }
+.rolecard.open.mafia { color: #fff; background: radial-gradient(120% 120% at 30% 0%, #6e1f2c, #2b0a12); }
+.rolecard.open.mafia .big { color: #ff8a9b; } .rolecard.open.mafia .muted, .rolecard.open.mafia .goal { color: #f2c9d0; }
+.rolecard.open.doctor { background: radial-gradient(120% 120% at 30% 0%, #e7fff4, #bfe9d6); }
+.rolecard.open.detective { background: radial-gradient(120% 120% at 30% 0%, #fff6dd, #ecd7a0); }
+.roleicon { font-size: 40px; line-height: 1; margin-bottom: 4px; }
+.goal { max-width: 30em; margin: 6px auto 0; font-size: 15px; }
+.extra { margin-top: 10px; padding-top: 10px; border-top: 1px dashed currentColor; font-size: 15px; }
+.bad { color: #c62845; } .good { color: #1f8a5b; }
+.rolecard.open.mafia .bad { color: #ff8a9b; }
+.seal { display: inline-grid; place-items: center; width: 54px; height: 54px; margin: 2px auto 8px; border-radius: 50%; background: #3b3f7a; color: #e8e3fb; font: 800 22px var(--display); }
+#roleBtn { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); color: #1b1f3b; background: rgba(27,31,59,.1); box-shadow: inset 0 0 0 1.5px rgba(27,31,59,.25); }
+.rolecard.open.mafia #roleBtn { color: #fff; background: rgba(255,255,255,.12); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.3); }
+
+#msg { text-align: center; margin: 12px 0; }
+
+/* Players: big tappable tiles */
+#players { display: grid; grid-template-columns: repeat(auto-fill, minmax(98px, 1fr)); gap: 8px; }
+.pc { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 0; padding: 12px 6px 10px; border-radius: 16px;
+  color: var(--chalk); background: rgba(255,255,255,.07); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.08); font: 400 14px/1.2 var(--body); text-align: center; }
+.pc:disabled { opacity: 1; cursor: default; }
+.pc.can { background: rgba(255,255,255,.11); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.22); cursor: pointer; }
+.pc.chosen { background: rgba(255,182,72,.2); box-shadow: inset 0 0 0 2.5px var(--lamp); }
+.pc.dead { opacity: .45; }
+.pc.dead .face { background: #444 !important; }
+.pc .face { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; font: 800 18px var(--display); color: #fff; background: var(--c); }
+.pc .pn { font-weight: 700; }
+.pc .pt { font-size: 12px; color: rgba(238,241,247,.7); min-height: 14px; }
+.pc.mafia .pt { color: #ff8a9b; }
+
+.dock { display: flex; gap: 8px; } .dock button { flex: 1; margin: 0; }
+#skipBtn.chosen { box-shadow: inset 0 0 0 2.5px var(--lamp); }
+</style>
+</head>
+<body>
+<header class="topbar"><a class="back" href="../../" aria-label="Back to the arcade">‹</a><h1>Nightfall</h1></header>
+<div id="err"></div>
+
+<div id="join" class="screen on">
+  <div class="intro"><p>The Mafia hides among the town. At night they strike; by day everyone argues and votes someone out. Can the town find them before it's too late?</p></div>
+  <label for="name">Your name</label>
+  <input id="name" maxlength="20" placeholder="Name (optional)">
+  <button class="wide" onclick="hostGame()">Host a game</button>
+  <div class="or">or join one</div>
+  <input id="pinIn" placeholder="Paste the join link or code" aria-label="Join link or code">
+  <div id="joinHint" class="muted"></div>
+  <button class="wide ghost" onclick="joinGame()">Join</button>
+  <p class="muted">Easiest: scan the QR code on the host's phone. 4–12 players in the same room. The app is the narrator, so everyone plays.</p>
+</div>
+
+<div id="lobby" class="screen">
+  <div class="ticket">
+    <div>Scan to join</div>
+    <div id="qr" class="qr"></div>
+    <div id="joinLink" class="link"></div>
+    <button class="ghost small" id="copyBtn" onclick="copyLink()">Copy link</button>
+    <div class="pinline">Game PIN<div class="pin" id="pinShow"></div></div>
+  </div>
+  <div id="roster" class="row"></div>
+  <div class="muted">Roles: 1 Mafia for 4–5 players, 2 for 6–8, 3 for 9–12. Always a Doctor, and a Detective from 5 players.</div>
+  <div id="lobbyErr" class="err"></div>
+  <div class="dock">
+    <button class="ghost" onclick="cancelGame()">Cancel</button>
+    <button onclick="startGame()">Start game</button>
+  </div>
+</div>
+
+<div id="waiting" class="screen">
+  <div class="panel" style="text-align:center">
+    <div class="muted">Game PIN</div>
+    <div class="pin" id="pinWait"></div>
+    <div id="roster2" class="row"></div>
+  </div>
+  <button class="wide ghost" onclick="exitGame()">Leave lobby</button>
+</div>
+
+<div id="game" class="screen">
+  <div class="phase" id="phase"></div>
+  <div id="news"></div>
+  <div class="rolecard sealed" id="roleCard">
+    <div id="role"></div>
+    <button class="ghost small" id="roleBtn" onclick="toggleRole()">Show my role</button>
+  </div>
+  <div id="msg"></div>
+  <div id="players"></div>
+  <div class="dock">
+    <button class="ghost" id="skipBtn" onclick="skipVote()" style="display:none">Skip the vote</button>
+    <button id="closeBtn" onclick="closeVote()" style="display:none">Close the vote</button>
+    <button id="againBtn" onclick="playAgain()" style="display:none">New game</button>
+  </div>
+  <button class="ghost small" id="inviteBtn" onclick="toggleInvite()" style="display:none">Invite more players</button>
+  <div id="inviteBox" style="display:none">
+    <div class="ticket">
+      <div>New players watch this game and play the next one</div>
+      <div id="qr2" class="qr"></div>
+      <div id="joinLink2" class="link"></div>
+      <button class="ghost small" id="copyBtn2" onclick="copyLink()">Copy link</button>
+    </div>
+  </div>
+  <div id="log" class="log"></div>
+  <button class="ghost small" id="leaveBtn" onclick="leaveOrCancel()">Leave game</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+<script type="module" src="main.js?v=1795041321"></script>
+</body>
+</html>
