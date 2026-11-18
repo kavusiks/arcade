@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500..800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../../lib/theme.css?v=1795041678">
+<link rel="stylesheet" href="../../lib/theme.css?v=1795043421">
 <style>
 /* Chalk on slate */
 :root { --table-1: #3a4a52; --table-2: #172025; --x: #ff8a7a; --o: #7fe3c0; }
@@ -24,8 +24,9 @@
 .score { font: 800 26px/1 var(--display); }
 .mid { text-align: center; }
 
-#board { display: grid; grid-template-columns: repeat(3, 1fr); width: min(100%, 420px); aspect-ratio: 1; margin: 0 auto; position: relative; }
-.sq { margin: 0; padding: 0; border-radius: 0; background: none; box-shadow: none; display: grid; place-items: center; }
+/* Fixed, equal rows and columns: placing a mark must never change the grid's size */
+#board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(0, 1fr)); width: min(100%, 420px); aspect-ratio: 1; margin: 0 auto; position: relative; }
+.sq { position: relative; min-width: 0; min-height: 0; width: 100%; height: 100%; margin: 0; padding: 0; border-radius: 0; background: none; box-shadow: none; overflow: hidden; }
 .sq:disabled { opacity: 1; }
 .sq:not(:disabled) { cursor: pointer; }
 .sq:not(:disabled):active { background: rgba(255,255,255,.06); transform: none; }
@@ -33,7 +34,7 @@
 .sq:nth-child(-n+6) { border-bottom: 5px solid rgba(238,241,247,.75); }
 .sq:not(:nth-child(3n)) { border-right: 5px solid rgba(238,241,247,.75); }
 .sq.win { background: rgba(255,182,72,.16); }
-.mark { width: 74%; height: 74%; fill: none; stroke-width: 11; stroke-linecap: round; filter: drop-shadow(0 0 6px currentColor); }
+.mark { position: absolute; inset: 13%; width: 74%; height: 74%; fill: none; stroke-width: 11; stroke-linecap: round; filter: drop-shadow(0 0 6px currentColor); }
 .mark.x { color: var(--x); stroke: var(--x); } .mark.o { color: var(--o); stroke: var(--o); }
 /* Strokes draw themselves when a mark appears */
 .mark path, .mark circle { stroke-dasharray: 180; stroke-dashoffset: 180; animation: draw .28s ease-out forwards; }
@@ -108,6 +109,6 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
-<script type="module" src="main.js?v=1795041678"></script>
+<script type="module" src="main.js?v=1795043421"></script>
 </body>
 </html>
