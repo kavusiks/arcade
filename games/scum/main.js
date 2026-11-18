@@ -46,12 +46,21 @@ function joinGame() {
   lobby = libs.openLobby({ game: 'scum', pin, isHost: false, name: myName });
   lobby.onMessage(onMessage);
   show('waiting');
+  renderRoster();
+  rosterTimer = setInterval(renderRoster, 1000);
 }
 
 function renderRoster() {
-  const names = [myName + ' (host)', ...lobby.peers.values()];
-  $('roster').innerHTML = '<b>Players (' + names.length + '/4):</b> ' + names.join(', ');
-  $('roster2').textContent = '';
+  if (!lobby) return;
+  const others = [...lobby.peers.values()];
+  if (isHost) {
+    const names = [myName + ' (host)', ...others];
+    $('roster').innerHTML = '<b>Players (' + names.length + '/4):</b> ' + names.join(', ');
+  } else {
+    $('roster2').innerHTML = others.length
+      ? '<b>Connected to:</b> ' + others.join(', ') + '. Waiting for the host to start…'
+      : 'Searching for the host… this can take up to 30 seconds. Check the PIN if it never connects.';
+  }
 }
 
 function startGame() {
@@ -159,6 +168,7 @@ function renderAll() {
 }
 
 function renderGame(v, hand, me) {
+  if (!isHost) clearInterval(rosterTimer);
   show('game');
   const myTurn = v.turn === me && !v.roundOver;
   $('seats').innerHTML = v.players.map((p, i) =>
