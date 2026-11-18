@@ -1,8 +1,13 @@
 // Scum UI and networking. The host runs the engine; clients send moves and render what the host sends.
-import { openLobby, makePin } from '../../lib/lobby.js';
 import { createGame, newRound, act, botChoice, view, RANKS, SUITS } from './engine.js';
 
 const $ = id => document.getElementById(id);
+// Load networking separately so the buttons still work (and show errors) if it fails.
+let libs = null;
+function showErr(t) { $('err').textContent = t; }
+import('../../lib/lobby.js')
+  .then(m => { libs = m; })
+  .catch(e => showErr('Networking failed to load: ' + e.message + '. Check your connection and reload.'));
 const BOT_NAMES = ['Ada', 'Ben', 'Cy'];
 const key = c => c.r + ',' + c.s;
 const same = (a, b) => a.r === b.r && a.s === b.s;
@@ -22,9 +27,10 @@ function playerName() {
 
 // ---------- lobby ----------
 function hostGame() {
+  if (!libs) { showErr('Still loading networking, try again in a moment.'); return; }
   myName = playerName(); isHost = true; seat = 0;
-  const pin = makePin();
-  lobby = openLobby({ game: 'scum', pin, isHost: true, name: myName });
+  const pin = libs.makePin();
+  lobby = libs.openLobby({ game: 'scum', pin, isHost: true, name: myName });
   lobby.onMessage(onMessage);
   $('pinShow').textContent = pin;
   show('lobby');
@@ -35,8 +41,9 @@ function hostGame() {
 function joinGame() {
   const pin = $('pinIn').value.trim();
   if (!/^\d{4}$/.test(pin)) { $('pinIn').value = ''; $('pinIn').placeholder = 'Enter the 4-digit PIN'; return; }
+  if (!libs) { showErr('Still loading networking, try again in a moment.'); return; }
   myName = playerName(); isHost = false;
-  lobby = openLobby({ game: 'scum', pin, isHost: false, name: myName });
+  lobby = libs.openLobby({ game: 'scum', pin, isHost: false, name: myName });
   lobby.onMessage(onMessage);
   show('waiting');
 }
