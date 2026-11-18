@@ -1,12 +1,12 @@
 // Scum UI and networking. The host runs the engine; players send moves and render what the host sends.
 // Sessions are kept in sessionStorage so a refresh rejoins the same game in the same tab.
-import { createGame, newRound, act, botChoice, view, RANKS, SUITS, TITLES } from './engine.js?v=1794966246';
+import { createGame, newRound, act, botChoice, view, RANKS, SUITS, TITLES } from './engine.js?v=1794967077';
 
 const $ = id => document.getElementById(id);
 let libs = null;
 function showErr(t) { $('err').textContent = t || ''; }
 // Load networking separately so the buttons still work (and show errors) if it fails.
-import('../../lib/lobby.js?v=1794966246')
+import('../../lib/lobby.js?v=1794967077')
   .then(m => { libs = m; if (!joinFromHash()) resume(); })
   .catch(e => showErr('Networking failed to load: ' + e.message + '. Check your connection and reload.'));
 
@@ -293,6 +293,7 @@ function cleanView(v) {
       name: String(p && p.name).slice(0, 30),
       bot: !!(p && p.bot),
       away: !!(p && p.away),
+      lost: !!(p && p.lost),
       count: int(p && p.count, 0, 52) ?? 0,
       place: int(p && p.place, -1, 3) ?? -1,
     })),
@@ -392,7 +393,7 @@ function renderGame(v, hand, me) {
   $('seats').innerHTML = v.players.map((p, i) =>
     '<div class="muted">' + (!v.roundOver && i === v.turn ? '▶ ' : '') +
     (i === me ? 'You' : esc(p.name)) + (p.bot ? ' 🤖' : '') + (p.away ? ' (disconnected)' : '') + ': ' +
-    (p.place >= 0 ? 'out #' + (p.place + 1) : p.count + ' cards') + '</div>'
+    (p.lost && !v.roundOver ? 'stuck with the 3♣, Scum' : p.place >= 0 ? 'out #' + (p.place + 1) : p.count + ' cards') + '</div>'
   ).join('');
   $('pile').innerHTML = v.pile.map(c => cardHTML(c, false)).join('') || '<span class="muted">empty</span>';
   $('hand').innerHTML = hand.map(c => cardHTML(c, myTurn)).join('');
