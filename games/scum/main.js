@@ -1,12 +1,12 @@
 // Scum UI and networking. The host runs the engine; players send moves and render what the host sends.
 // Sessions are kept in sessionStorage so a refresh rejoins the same game in the same tab.
-import { createGame, newRound, act, botChoice, view, RANKS, SUITS, TITLES } from './engine.js?v=1794967077';
+import { createGame, newRound, act, botChoice, view, RANKS, SUITS, TITLES } from './engine.js?v=1794967286';
 
 const $ = id => document.getElementById(id);
 let libs = null;
 function showErr(t) { $('err').textContent = t || ''; }
 // Load networking separately so the buttons still work (and show errors) if it fails.
-import('../../lib/lobby.js?v=1794967077')
+import('../../lib/lobby.js?v=1794967286')
   .then(m => { libs = m; if (!joinFromHash()) resume(); })
   .catch(e => showErr('Networking failed to load: ' + e.message + '. Check your connection and reload.'));
 
@@ -40,6 +40,7 @@ let G = null, roster = new Map(), seatKey = [], seatPeer = [], nextTimer = null,
 // player
 let hostId = null, hostAway = false, seat = -1, V = null, myHand = [], lobbyNames = [];
 let sel = new Set(), err = '';
+let handVisible = false; // not saved: after a reload the hand starts hidden
 
 function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id));
@@ -307,6 +308,12 @@ function pick(k) {
   render();
 }
 
+function toggleHand() {
+  handVisible = !handVisible;
+  if (!handVisible) sel = new Set(); // nothing stays selected while hidden
+  render();
+}
+
 function sendMove(kind) {
   const hand = isHost ? G.players[0].hand : myHand;
   const cards = kind === 'play' ? hand.filter(c => sel.has(cardKey(c))).map(c => ({ r: c.r, s: c.s })) : [];
@@ -331,6 +338,7 @@ window.leaveOrCancel = safe(leaveOrCancel);
 window.playSel = safe(() => sendMove('play'));
 window.passTurn = safe(() => sendMove('pass'));
 window.pick = pick;
+window.toggleHand = safe(toggleHand);
 window.addEventListener('error', e => showErr('Error: ' + e.message));
 window.addEventListener('unhandledrejection', e => showErr('Error: ' + (e.reason && e.reason.message || e.reason)));
 
@@ -396,10 +404,13 @@ function renderGame(v, hand, me) {
     (p.lost && !v.roundOver ? 'stuck with the 3♣, Scum' : p.place >= 0 ? 'out #' + (p.place + 1) : p.count + ' cards') + '</div>'
   ).join('');
   $('pile').innerHTML = v.pile.map(c => cardHTML(c, false)).join('') || '<span class="muted">empty</span>';
-  $('hand').innerHTML = hand.map(c => cardHTML(c, myTurn)).join('');
+  $('hand').innerHTML = handVisible
+    ? hand.map(c => cardHTML(c, myTurn)).join('')
+    : hand.map(() => '<span class="card back"></span>').join('');
+  $('handBtn').textContent = handVisible ? 'Hide cards' : 'Show cards';
   $('msg').textContent = !isHost && hostAway ? 'The host disconnected. Waiting for them to come back…'
     : err || (v.roundOver ? (isHost ? 'Round over. Start the next round when everyone is ready.' : 'Round over. Waiting for the host to start the next round…')
-    : myTurn ? 'Your turn: select cards and press Play, or Pass.'
+    : myTurn ? (handVisible ? 'Your turn: select cards and press Play, or Pass.' : 'Your turn: press Show cards to see your hand.')
     : v.players[v.turn].name + ' is playing…');
   $('play').disabled = !myTurn;
   $('pass').disabled = !myTurn || v.topCount === 0;
