@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Undercover · Arcade</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0 auto;padding:12px;max-width:560px;background:#2b2236;color:#fff}
+a{color:#ffd54a}
+.screen{display:none}.screen.on{display:block}
+input,select{font-size:18px;padding:10px;border-radius:8px;border:0;width:100%;box-sizing:border-box;margin:4px 0}
+button{padding:12px 16px;margin:6px 2px;border-radius:8px;border:0;font-size:16px;background:#ffd54a;color:#111}
+button.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5)}
+button.no{background:#e57373}
+button:disabled{opacity:.4}
+.row{margin:8px 0}.muted{opacity:.75;font-size:14px}
+.pin{font-size:42px;letter-spacing:8px;font-weight:700;text-align:center;margin:8px 0}
+.panel{background:#1d1626;padding:10px;border-radius:10px;margin:8px 0}
+.big{font-size:24px;font-weight:800;margin:4px 0}
+#card{min-height:60px}
+#timer{font-size:40px;font-weight:800;text-align:center;font-variant-numeric:tabular-nums}
+#timer.low{color:#ff8a80}
+.loc{display:inline-block;padding:6px 10px;margin:3px;border-radius:14px;background:#3d3150;font-size:14px;cursor:pointer;user-select:none}
+.loc.out{text-decoration:line-through;opacity:.4}
+#log{font-size:13px;opacity:.85;min-height:3em;background:#1d1626;padding:6px;border-radius:6px}
+#err,#lobbyErr{color:#ffb4a8;font-size:14px}
+table{width:100%;border-collapse:collapse;margin-top:6px}
+td,th{text-align:left;padding:4px;border-bottom:1px solid rgba(255,255,255,.15)}
+.qr{background:#fff;padding:10px;width:200px;min-height:200px;margin:8px auto;border-radius:8px;color:#111}
+.link{word-break:break-all;font-size:13px;background:#1d1626;padding:6px;border-radius:6px;user-select:all}
+</style>
+</head>
+<body>
+<h2>Undercover</h2>
+<div id="err"></div>
+
+<div id="join" class="screen on">
+  <label>Your name</label>
+  <input id="name" maxlength="20" placeholder="Name (optional)">
+  <div class="row"><button onclick="hostGame()">Host a game</button></div>
+  <label>Or join a game</label>
+  <input id="pinIn" placeholder="Paste the join link or code">
+  <div id="joinHint" class="muted"></div>
+  <div class="row"><button onclick="joinGame()">Join</button></div>
+  <p class="muted">Easiest: scan the QR code on the host's screen. 3–8 players, all in the same room.</p>
+  <p class="muted">Everyone gets the same secret location and a role, except the spy. Take turns asking each other questions. Agents try to find the spy; the spy tries to work out the location without being caught.</p>
+</div>
+
+<div id="lobby" class="screen">
+  <div class="muted">Players scan this QR code to join:</div>
+  <div id="qr" class="qr"></div>
+  <div class="muted">Or send them this link:</div>
+  <div id="joinLink" class="link"></div>
+  <div class="row"><button class="ghost" id="copyBtn" onclick="copyLink()">Copy link</button></div>
+  <div class="muted">Game PIN (shown on players' screens to confirm they're in the right game):</div>
+  <div class="pin" id="pinShow"></div>
+  <div id="roster" class="row"></div>
+  <label class="muted">Round length</label>
+  <select id="minutes"><option value="5">5 minutes</option><option value="8" selected>8 minutes</option><option value="10">10 minutes</option></select>
+  <div id="lobbyErr"></div>
+  <div class="row">
+    <button onclick="startGame()">Start game</button>
+    <button class="ghost" onclick="cancelGame()">Cancel game</button>
+  </div>
+</div>
+
+<div id="waiting" class="screen">
+  <div class="muted">Game PIN:</div>
+  <div class="pin" id="pinWait"></div>
+  <div id="roster2" class="row"></div>
+  <div class="row"><button class="ghost" onclick="exitGame()">Leave lobby</button></div>
+</div>
+
+<div id="game" class="screen">
+  <div class="panel">
+    <div id="card"></div>
+    <button class="ghost" id="cardBtn" onclick="toggleCard()" style="padding:6px 12px;font-size:14px">Show my card</button>
+  </div>
+  <div id="timer"></div>
+  <div id="msg" class="row"></div>
+
+  <div id="voteBox" class="panel" style="display:none">
+    <div id="voteText"></div>
+    <div id="voteBtns"><button onclick="voteYes()">Yes, it's them</button><button class="no" onclick="voteNo()">No</button></div>
+  </div>
+
+  <div id="accuseBox" class="panel" style="display:none">
+    <div class="muted">Think you know the spy? You can accuse once per round. Everyone else must agree.</div>
+    <select id="accuseSel"></select>
+    <button onclick="accuse('accuseSel')">Accuse</button>
+  </div>
+
+  <div id="finalBox" class="panel" style="display:none">
+    <div><b>Time's up.</b> It's your turn: accuse someone, or pass.</div>
+    <select id="finalSel"></select>
+    <button onclick="accuse('finalSel')">Accuse</button>
+    <button class="ghost" onclick="passFinal()">Pass</button>
+  </div>
+
+  <div id="guessBox" class="panel" style="display:none">
+    <div class="muted">Spy: stop the game and guess the location. Right: +4 points. Wrong: the agents win.</div>
+    <select id="guessSel"></select>
+    <button onclick="guess()">Guess location</button>
+  </div>
+
+  <div id="resultBox" class="panel" style="display:none"></div>
+  <div id="nextBox" style="display:none">
+    <label class="muted">Next round length</label>
+    <select id="minutes2"><option value="5">5 minutes</option><option value="8">8 minutes</option><option value="10">10 minutes</option></select>
+    <div class="row"><button id="nextBtn" onclick="nextRound()">Start next round</button></div>
+    <div id="nextHint" class="muted"></div>
+    <div class="muted">New players can scan this to join before the next round:</div>
+    <div id="qr2" class="qr"></div>
+    <div id="joinLink2" class="link"></div>
+    <div class="row"><button class="ghost" id="copyBtn2" onclick="copyLink()">Copy link</button></div>
+  </div>
+
+  <div class="row"><b>Players</b></div>
+  <div id="seats"></div>
+  <div class="row"><b>Possible locations</b> <span class="muted">(tap to cross out; only on your phone)</span></div>
+  <div id="locs"></div>
+  <div class="row"><b>Log</b></div>
+  <div id="log"></div>
+  <div class="row"><button class="ghost" id="leaveBtn" onclick="leaveOrCancel()">Leave game</button></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+<script type="module" src="main.js?v=1795029127"></script>
+</body>
+</html>
