@@ -1,13 +1,13 @@
 // Investor UI and networking. The host runs the engine; players send actions and render what the host sends.
 // Sessions are kept in sessionStorage so a refresh rejoins the same game in the same tab.
-import { createGame, act, botMove, view, endGame, canDo, tradeable, rentFor, MAX_SEATS, TOKEN_COLORS } from './engine.js?v=1795037166';
-import { BOARD, GROUPS, JAIL_FINE, isOwnable } from './board.js?v=1795037166';
+import { createGame, act, botMove, view, endGame, canDo, tradeable, rentFor, MAX_SEATS, TOKEN_COLORS } from './engine.js?v=1795037834';
+import { BOARD, GROUPS, JAIL_FINE, isOwnable } from './board.js?v=1795037834';
 
 const $ = id => document.getElementById(id);
 let libs = null;
 function showErr(t) { $('err').textContent = t || ''; }
 // Load networking separately so the buttons still work (and show errors) if it fails.
-import('../../lib/lobby.js?v=1795037166')
+import('../../lib/lobby.js?v=1795037834')
   .then(m => { libs = m; if (!joinFromHash()) resume(); })
   .catch(e => showErr('Networking failed to load: ' + e.message + '. Check your connection and reload.'));
 
@@ -390,7 +390,8 @@ function renderLobby() {
   $('pinShow').textContent = pin;
   renderInvite('qr', 'joinLink');
   const names = [myName + ' (host)', ...[...roster.values()].map(r => r.name)];
-  $('roster').innerHTML = '<b>Players (' + names.length + '/' + MAX_SEATS + '):</b> ' + names.map(esc).join(', ');
+  $('roster').innerHTML = '<div class="label">Players (' + names.length + '/' + MAX_SEATS + ')</div><div class="avatars">' +
+    names.map((n, i) => `<div class="av"><div class="face" style="--c:${TOKEN_COLORS[i % TOKEN_COLORS.length]}">${esc((String(n).trim()[0] || '?').toUpperCase())}</div><div>${esc(n)}</div></div>`).join('') + '</div>';
 }
 
 async function copyLink() {

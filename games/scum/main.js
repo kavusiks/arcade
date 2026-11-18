@@ -1,12 +1,12 @@
 // Scum UI and networking. The host runs the engine; players send moves and render what the host sends.
 // Sessions are kept in sessionStorage so a refresh rejoins the same game in the same tab.
-import { createGame, newRound, act, botChoice, view, RANKS, SUITS, TITLES } from './engine.js?v=1794967286';
+import { createGame, newRound, act, botChoice, view, RANKS, SUITS, TITLES } from './engine.js?v=1795037834';
 
 const $ = id => document.getElementById(id);
 let libs = null;
 function showErr(t) { $('err').textContent = t || ''; }
 // Load networking separately so the buttons still work (and show errors) if it fails.
-import('../../lib/lobby.js?v=1794967286')
+import('../../lib/lobby.js?v=1795037834')
   .then(m => { libs = m; if (!joinFromHash()) resume(); })
   .catch(e => showErr('Networking failed to load: ' + e.message + '. Check your connection and reload.'));
 
@@ -368,7 +368,9 @@ function renderLobby() {
   $('pinShow').textContent = pin;
   renderInvite('qr', 'joinLink');
   const names = [myName + ' (host)', ...[...roster.values()].map(r => r.name)];
-  $('roster').innerHTML = '<b>Players (' + names.length + '/4):</b> ' + names.map(esc).join(', ');
+  $('roster').innerHTML = '<div class="label">Players (' + names.length + '/4)</div><div class="avatars">' +
+    names.map((n, i) => avatar(n, i)).join('') + '</div>' +
+    (names.length < 4 ? '<div class="muted">Bots fill the empty seats when you start.</div>' : '');
 }
 
 async function copyLink() {
@@ -387,23 +389,34 @@ function renderWaiting() {
     : 'Searching for the host… this can take up to 30 seconds.';
 }
 
+// Card values are cleaned integers, so they are safe to put in HTML.
 function cardHTML(c, clickable) {
   const red = c.s === 1 || c.s === 2;
   const k = cardKey(c);
-  const cls = 'card' + (red ? ' red' : '') + (sel.has(k) ? ' sel' : '');
+  const special = c.r === 0 && (c.s === 0 || c.s === 3); // 3♣ and 3♠ have special rules
+  const cls = 'card' + (red ? ' red' : '') + (sel.has(k) ? ' sel' : '') + (special ? ' special' : '');
   const click = clickable ? ` onclick="pick('${k}')"` : '';
-  return `<span class="${cls}"${click}>${RANKS[c.r]}<br>${SUITS[c.s]}</span>`;
+  return `<span class="${cls}"${click}><span class="ix">${RANKS[c.r]}<i>${SUITS[c.s]}</i></span><span class="pip">${SUITS[c.s]}</span></span>`;
+}
+
+// Round avatar with an initial, a badge and a short status line.
+const SEAT_COLORS = ['#ff7a59', '#4f8cff', '#c77dff', '#ffb648', '#36c2d6', '#ff5c7a', '#9ccc65', '#f06292'];
+function avatar(name, i, { now = false, gone = false, badge = '', tag = '' } = {}) {
+  const initial = esc((String(name).trim()[0] || '?').toUpperCase());
+  return `<div class="av${now ? ' now' : ''}${gone ? ' gone' : ''}"><div class="face" style="--c:${SEAT_COLORS[i % SEAT_COLORS.length]}">${initial}` +
+    (badge !== '' ? `<span class="badge">${badge}</span>` : '') + `</div><div>${esc(name)}</div>` + (tag ? `<div class="tag">${tag}</div>` : '') + `</div>`;
 }
 
 function renderGame(v, hand, me) {
   show('game');
   const myTurn = v.turn === me && !v.roundOver && (isHost || !hostAway);
-  $('seats').innerHTML = v.players.map((p, i) =>
-    '<div class="muted">' + (!v.roundOver && i === v.turn ? '▶ ' : '') +
-    (i === me ? 'You' : esc(p.name)) + (p.bot ? ' 🤖' : '') + (p.away ? ' (disconnected)' : '') + ': ' +
-    (p.lost && !v.roundOver ? 'stuck with the 3♣, Scum' : p.place >= 0 ? 'out #' + (p.place + 1) : p.count + ' cards') + '</div>'
-  ).join('');
-  $('pile').innerHTML = v.pile.map(c => cardHTML(c, false)).join('') || '<span class="muted">empty</span>';
+  $('seats').innerHTML = v.players.map((p, i) => avatar(i === me ? 'You' : p.name, i, {
+    now: !v.roundOver && i === v.turn,
+    gone: p.place >= 0 || (p.lost && !v.roundOver),
+    badge: p.place >= 0 || p.lost ? '' : p.count,
+    tag: p.away ? 'disconnected' : p.lost && !v.roundOver ? 'stuck with 3♣' : p.place >= 0 ? (p.place === 0 ? 'out first' : 'out #' + (p.place + 1)) : '',
+  })).join('');
+  $('pile').innerHTML = v.pile.map(c => cardHTML(c, false)).join('') || '<span class="empty">Lead</span>';
   $('hand').innerHTML = handVisible
     ? hand.map(c => cardHTML(c, myTurn)).join('')
     : hand.map(() => '<span class="card back"></span>').join('');
@@ -416,6 +429,7 @@ function renderGame(v, hand, me) {
   $('pass').disabled = !myTurn || v.topCount === 0;
   $('log').innerHTML = v.log.map(esc).join('<br>');
   $('leaveBtn').textContent = isHost ? 'Cancel game' : 'Leave game';
+  $('play').parentElement.style.display = v.roundOver ? 'none' : '';
   $('nextBtn').style.display = isHost && v.roundOver ? '' : 'none';
   const inviting = isHost && v.roundOver && G.players.some((p, i) => i > 0 && p.bot);
   $('invite').style.display = inviting ? '' : 'none';
@@ -430,8 +444,8 @@ function renderScores(v, me) {
   const title = i => v.ranking ? TITLES[v.ranking.indexOf(i)] || '' : '';
   const rows = v.players.map((p, i) => ({ i, name: i === me ? 'You' : p.name, score: v.scores[i] || 0 }))
     .sort((a, b) => b.score - a.score);
-  box.innerHTML = '<b>Scoreboard</b> <span class="muted">(3/2/1/0 points per round)</span><table>' +
+  box.innerHTML = '<h2 style="margin:0">Scoreboard</h2><div class="muted">3, 2, 1 and 0 points per round</div><table>' +
     '<tr><th>Player</th><th>This round</th><th>Points</th></tr>' +
-    rows.map(r => '<tr><td>' + esc(r.name) + '</td><td>' + esc(title(r.i)) + '</td><td>' + r.score + '</td></tr>').join('') +
+    rows.map(r => '<tr' + (r.i === me ? ' class="me"' : '') + '><td>' + esc(r.name) + '</td><td>' + esc(title(r.i)) + '</td><td>' + r.score + '</td></tr>').join('') +
     '</table>';
 }

@@ -4,133 +4,166 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Undercover · Arcade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../lib/theme.css?v=1795037834">
 <style>
-body{font-family:system-ui,sans-serif;margin:0 auto;padding:12px;max-width:560px;background:#2b2236;color:#fff}
-a{color:#ffd54a}
-.screen{display:none}.screen.on{display:block}
-input,select{font-size:18px;padding:10px;border-radius:8px;border:0;width:100%;box-sizing:border-box;margin:4px 0}
-button{padding:12px 16px;margin:6px 2px;border-radius:8px;border:0;font-size:16px;background:#ffd54a;color:#111}
-button.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5)}
-button.no{background:#e57373}
-button:disabled{opacity:.4}
-.row{margin:8px 0}.muted{opacity:.75;font-size:14px}
-.pin{font-size:42px;letter-spacing:8px;font-weight:700;text-align:center;margin:8px 0}
-.panel{background:#1d1626;padding:10px;border-radius:10px;margin:8px 0}
-.big{font-size:24px;font-weight:800;margin:4px 0}
-#card{min-height:60px}
-#timer{font-size:40px;font-weight:800;text-align:center;font-variant-numeric:tabular-nums}
-#timer.low{color:#ff8a80}
-#locs{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}
-.loc{background:#3d3150;border-radius:10px;overflow:hidden;cursor:pointer;user-select:none;text-align:center;font-size:13px;padding-bottom:4px}
-.loc .pic{display:block;width:100%;height:auto;aspect-ratio:3/2}
-.loc span{display:block;margin-top:3px}
-.loc.out{opacity:.35}
-.loc.out .pic{filter:grayscale(1)}
-.loc.out span{text-decoration:line-through}
-.card-pic{display:block;width:100%;max-width:300px;height:auto;aspect-ratio:3/2;border-radius:10px;margin:4px auto 8px}
-#log{font-size:13px;opacity:.85;min-height:3em;background:#1d1626;padding:6px;border-radius:6px}
-#err,#lobbyErr{color:#ffb4a8;font-size:14px}
-table{width:100%;border-collapse:collapse;margin-top:6px}
-td,th{text-align:left;padding:4px;border-bottom:1px solid rgba(255,255,255,.15)}
-.qr{background:#fff;padding:10px;width:200px;min-height:200px;margin:8px auto;border-radius:8px;color:#111}
-.link{word-break:break-all;font-size:13px;background:#1d1626;padding:6px;border-radius:6px;user-select:all}
+/* Noir: plum night with brass */
+:root { --table-1: #3a2348; --table-2: #150c1d; --brass: #d9a45b; --paper: #f1e3c6; }
+
+/* The secret card is a dossier */
+.dossier { position: relative; margin: 10px 0; padding: 16px; border-radius: 6px 18px 18px 18px; color: #2a1a33; background: var(--paper);
+  box-shadow: 0 18px 30px -18px rgba(0,0,0,.9); }
+.dossier::before { content: ''; position: absolute; left: 0; top: -12px; width: 40%; height: 14px; border-radius: 8px 8px 0 0; background: var(--paper); }
+.dossier .muted { color: #6b5a4a; }
+.dossier .big { color: #2a1a33; }
+.dossier.sealed { text-align: center; background: repeating-linear-gradient(-45deg, #e9d6b0 0 10px, #f1e3c6 10px 20px); }
+.dossier.sealed::before { background: #e9d6b0; }
+.dossier.spy { color: var(--paper); background: radial-gradient(120% 120% at 20% 0%, #5b2f40, #2a1520); }
+.dossier.spy::before { background: #5b2f40; }
+.dossier.spy .big { color: #ff8a9b; font-size: 32px; }
+.dossier.spy .muted { color: #d8b7c0; }
+.seal { display: inline-grid; place-items: center; width: 54px; height: 54px; margin: 2px auto 8px; border-radius: 50%; background: #b5363f; color: #f6d9a3; font: 800 22px var(--display); box-shadow: inset 0 0 0 3px rgba(255,255,255,.2); }
+.dossier .card-pic { display: block; width: 100%; height: auto; aspect-ratio: 3/2; border-radius: 8px; margin: 0 0 10px; }
+#cardBtn { position: absolute; right: 12px; bottom: 12px; color: #2a1a33; background: rgba(42,26,51,.1); box-shadow: inset 0 0 0 1.5px rgba(42,26,51,.25); }
+.dossier.spy #cardBtn { color: var(--paper); background: rgba(255,255,255,.1); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.3); }
+#card { padding-bottom: 38px; }
+
+/* Countdown ring */
+.clock { position: relative; display: grid; place-items: center; width: 168px; height: 168px; margin: 16px auto 4px; }
+.clock svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.clock .track { stroke: rgba(255,255,255,.1); }
+.clock .bar { stroke: var(--brass); transition: stroke-dashoffset 1s linear, stroke .3s; }
+.clock.low .bar { stroke: var(--coral); }
+#timer { font: 800 44px/1 var(--display); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.clock.low #timer { color: var(--coral); }
+.clock.done #timer { font-size: 26px; }
+#timerSub { text-align: center; font-size: 14px; color: rgba(238,241,247,.7); min-height: 20px; }
+#msg { text-align: center; margin: 6px 0 12px; }
+
+.vote { border: 2px solid var(--brass); background: rgba(217,164,91,.1); }
+.vote #voteBtns { display: flex; gap: 8px; margin-top: 10px; } .vote #voteBtns button { flex: 1; margin: 0; }
+.action select { margin-top: 8px; }
+.result { text-align: center; }
+.result .card-pic { display: block; width: 100%; max-width: 320px; height: auto; aspect-ratio: 3/2; margin: 0 auto 10px; border-radius: 12px; }
+.result table { text-align: left; }
+
+/* Location grid */
+#locs { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+.loc { position: relative; border-radius: 12px; overflow: hidden; cursor: pointer; user-select: none; background: #24152f; text-align: center; font-size: 13px; padding-bottom: 6px; }
+.loc .pic { display: block; width: 100%; height: auto; aspect-ratio: 3/2; }
+.loc span { display: block; margin-top: 4px; }
+.loc.out { opacity: .32; } .loc.out .pic { filter: grayscale(1); } .loc.out span { text-decoration: line-through; }
+.loc.out::after { content: '✕'; position: absolute; top: 4px; right: 8px; font: 800 22px var(--display); color: var(--coral); }
+.dock { display: flex; gap: 8px; } .dock button { flex: 1; margin: 0; }
 </style>
 </head>
 <body>
-<h2>Undercover</h2>
+<header class="topbar"><a class="back" href="../../" aria-label="Back to the arcade">‹</a><h1>Undercover</h1></header>
 <div id="err"></div>
 
 <div id="join" class="screen on">
-  <label>Your name</label>
+  <div class="intro"><p>Everyone gets the same secret location and a role there, except the spy. Ask each other questions to find the spy before they work out where you are.</p></div>
+  <label for="name">Your name</label>
   <input id="name" maxlength="20" placeholder="Name (optional)">
-  <div class="row"><button onclick="hostGame()">Host a game</button></div>
-  <label>Or join a game</label>
-  <input id="pinIn" placeholder="Paste the join link or code">
+  <button class="wide" onclick="hostGame()">Host a game</button>
+  <div class="or">or join one</div>
+  <input id="pinIn" placeholder="Paste the join link or code" aria-label="Join link or code">
   <div id="joinHint" class="muted"></div>
-  <div class="row"><button onclick="joinGame()">Join</button></div>
-  <p class="muted">Easiest: scan the QR code on the host's screen. 3–8 players, all in the same room.</p>
-  <p class="muted">Everyone gets the same secret location and a role, except the spy. Take turns asking each other questions. Agents try to find the spy; the spy tries to work out the location without being caught.</p>
+  <button class="wide ghost" onclick="joinGame()">Join</button>
+  <p class="muted">Easiest: scan the QR code on the host's phone. 3–8 players, all in the same room.</p>
 </div>
 
 <div id="lobby" class="screen">
-  <div class="muted">Players scan this QR code to join:</div>
-  <div id="qr" class="qr"></div>
-  <div class="muted">Or send them this link:</div>
-  <div id="joinLink" class="link"></div>
-  <div class="row"><button class="ghost" id="copyBtn" onclick="copyLink()">Copy link</button></div>
-  <div class="muted">Game PIN (shown on players' screens to confirm they're in the right game):</div>
-  <div class="pin" id="pinShow"></div>
+  <div class="ticket">
+    <div>Scan to join</div>
+    <div id="qr" class="qr"></div>
+    <div id="joinLink" class="link"></div>
+    <button class="ghost small" id="copyBtn" onclick="copyLink()">Copy link</button>
+    <div class="pinline">Game PIN<div class="pin" id="pinShow"></div></div>
+  </div>
   <div id="roster" class="row"></div>
-  <label class="muted">Round length</label>
+  <label for="minutes">Round length</label>
   <select id="minutes"><option value="5">5 minutes</option><option value="8" selected>8 minutes</option><option value="10">10 minutes</option></select>
-  <div id="lobbyErr"></div>
-  <div class="row">
+  <div id="lobbyErr" class="err"></div>
+  <div class="dock">
+    <button class="ghost" onclick="cancelGame()">Cancel</button>
     <button onclick="startGame()">Start game</button>
-    <button class="ghost" onclick="cancelGame()">Cancel game</button>
   </div>
 </div>
 
 <div id="waiting" class="screen">
-  <div class="muted">Game PIN:</div>
-  <div class="pin" id="pinWait"></div>
-  <div id="roster2" class="row"></div>
-  <div class="row"><button class="ghost" onclick="exitGame()">Leave lobby</button></div>
+  <div class="panel" style="text-align:center">
+    <div class="muted">Game PIN</div>
+    <div class="pin" id="pinWait"></div>
+    <div id="roster2" class="row"></div>
+  </div>
+  <button class="wide ghost" onclick="exitGame()">Leave lobby</button>
 </div>
 
 <div id="game" class="screen">
-  <div class="panel">
+  <div class="dossier" id="dossier">
     <div id="card"></div>
-    <button class="ghost" id="cardBtn" onclick="toggleCard()" style="padding:6px 12px;font-size:14px">Show my card</button>
+    <button class="ghost small" id="cardBtn" onclick="toggleCard()">Show my card</button>
   </div>
-  <div id="timer"></div>
-  <div id="msg" class="row"></div>
+  <div class="clock" id="clock">
+    <svg viewBox="0 0 168 168" aria-hidden="true"><circle class="track" cx="84" cy="84" r="76" fill="none" stroke-width="10"/><circle class="bar" id="ring" cx="84" cy="84" r="76" fill="none" stroke-width="10" stroke-linecap="round" stroke-dasharray="477.5" stroke-dashoffset="0"/></svg>
+    <div id="timer"></div>
+  </div>
+  <div id="timerSub"></div>
+  <div id="msg"></div>
 
-  <div id="voteBox" class="panel" style="display:none">
+  <div id="voteBox" class="panel vote" style="display:none">
     <div id="voteText"></div>
-    <div id="voteBtns"><button onclick="voteYes()">Yes, it's them</button><button class="no" onclick="voteNo()">No</button></div>
+    <div id="voteBtns"><button class="no" onclick="voteNo()">No</button><button onclick="voteYes()">Yes, it's them</button></div>
   </div>
 
-  <div id="accuseBox" class="panel" style="display:none">
-    <div class="muted">Think you know the spy? You can accuse once per round. Everyone else must agree.</div>
-    <select id="accuseSel"></select>
-    <button onclick="accuse('accuseSel')">Accuse</button>
+  <div id="accuseBox" class="panel action" style="display:none">
+    <div>Think you know the spy? You can accuse once per round, and everyone else must agree.</div>
+    <select id="accuseSel" aria-label="Who do you accuse?"></select>
+    <button class="wide" onclick="accuse('accuseSel')">Accuse</button>
   </div>
 
-  <div id="finalBox" class="panel" style="display:none">
+  <div id="finalBox" class="panel action vote" style="display:none">
     <div><b>Time's up.</b> It's your turn: accuse someone, or pass.</div>
-    <select id="finalSel"></select>
-    <button onclick="accuse('finalSel')">Accuse</button>
-    <button class="ghost" onclick="passFinal()">Pass</button>
+    <select id="finalSel" aria-label="Who do you accuse?"></select>
+    <div class="dock" style="position:static;background:none;margin:8px 0 0;padding:0">
+      <button class="ghost" onclick="passFinal()">Pass</button>
+      <button onclick="accuse('finalSel')">Accuse</button>
+    </div>
   </div>
 
-  <div id="guessBox" class="panel" style="display:none">
-    <div class="muted">Spy: stop the game and guess the location. Right: +4 points. Wrong: the agents win.</div>
-    <select id="guessSel"></select>
-    <button onclick="guess()">Guess location</button>
+  <div id="guessBox" class="panel action" style="display:none">
+    <div>Know where you are? Stop the game and guess. Right: +4 points. Wrong: the agents win.</div>
+    <select id="guessSel" aria-label="Guess the location"></select>
+    <button class="wide" onclick="guess()">Guess location</button>
   </div>
 
-  <div id="resultBox" class="panel" style="display:none"></div>
+  <div id="resultBox" class="panel result" style="display:none"></div>
   <div id="nextBox" style="display:none">
-    <label class="muted">Next round length</label>
+    <label for="minutes2">Next round length</label>
     <select id="minutes2"><option value="5">5 minutes</option><option value="8">8 minutes</option><option value="10">10 minutes</option></select>
-    <div class="row"><button id="nextBtn" onclick="nextRound()">Start next round</button></div>
+    <button class="wide" id="nextBtn" onclick="nextRound()">Start next round</button>
     <div id="nextHint" class="muted"></div>
-    <div class="muted">New players can scan this to join before the next round:</div>
-    <div id="qr2" class="qr"></div>
-    <div id="joinLink2" class="link"></div>
-    <div class="row"><button class="ghost" id="copyBtn2" onclick="copyLink()">Copy link</button></div>
+    <div class="ticket">
+      <div>New players can join before the next round</div>
+      <div id="qr2" class="qr"></div>
+      <div id="joinLink2" class="link"></div>
+      <button class="ghost small" id="copyBtn2" onclick="copyLink()">Copy link</button>
+    </div>
   </div>
 
-  <div class="row"><b>Players</b></div>
-  <div id="seats"></div>
-  <div class="row"><b>Possible locations</b> <span class="muted">(tap to cross out; only on your phone)</span></div>
+  <div class="label">Players</div>
+  <div id="seats" class="avatars"></div>
+  <div class="label">Possible locations</div>
+  <div class="muted" style="margin-bottom:8px">Tap to cross out. Only you see this.</div>
   <div id="locs"></div>
-  <div class="row"><b>Log</b></div>
-  <div id="log"></div>
-  <div class="row"><button class="ghost" id="leaveBtn" onclick="leaveOrCancel()">Leave game</button></div>
+  <div id="log" class="log"></div>
+  <button class="ghost small" id="leaveBtn" onclick="leaveOrCancel()">Leave game</button>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
-<script type="module" src="main.js?v=1795029977"></script>
+<script type="module" src="main.js?v=1795037834"></script>
 </body>
 </html>

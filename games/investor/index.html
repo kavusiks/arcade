@@ -4,23 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Investor · Arcade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../lib/theme.css?v=1795037834">
 <style>
-body{font-family:system-ui,sans-serif;margin:0 auto;padding:10px;max-width:600px;background:#14322a;color:#fff}
-.screen{display:none}.screen.on{display:block}
-input,select{font-size:17px;padding:9px;border-radius:8px;border:0;width:100%;box-sizing:border-box;margin:4px 0}
-button{padding:11px 15px;margin:5px 2px;border-radius:8px;border:0;font-size:16px;background:#ffd54a;color:#111}
-button.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5)}
-button.no{background:#e57373}
-button.small{padding:6px 10px;font-size:13px;margin:3px 2px}
-button:disabled{opacity:.4}
-.row{margin:8px 0}.muted{opacity:.75;font-size:14px}
-.pin{font-size:42px;letter-spacing:8px;font-weight:700;text-align:center;margin:8px 0}
-.panel{background:#0e241e;padding:10px;border-radius:10px;margin:8px 0}
-.big{font-size:22px;font-weight:800;margin:4px 0}
-.qr{background:#fff;padding:10px;width:200px;min-height:200px;margin:8px auto;border-radius:8px;color:#111}
-.link{word-break:break-all;font-size:13px;background:#0e241e;padding:6px;border-radius:6px;user-select:all}
-#err{color:#ffb4a8;font-size:14px}
-
+/* Banker's green and gold */
+:root { --table-1: #1c5a47; --table-2: #0a241c; --gold: #f2c14e; }
+#board { box-shadow: 0 24px 40px -24px rgba(0,0,0,.9); border-radius: 14px; border-width: 3px; }
+.center { background: radial-gradient(90% 90% at 50% 40%, #236b55, #123e31) !important; }
+.title { color: var(--gold) !important; font-family: var(--display) !important; letter-spacing: .02em !important; font-weight: 800 !important; }
+.pl { display: block; padding: 8px 10px; margin: 4px 0; border-radius: 12px; background: var(--panel); }
+.pl.now { box-shadow: inset 0 0 0 2px var(--mint); }
+.pl .tok { width: 14px; height: 14px; }
+.prop { background: var(--panel) !important; border-radius: 12px !important; padding: 10px 12px !important; }
+#actions { display: flex; flex-wrap: wrap; gap: 8px; } #actions button { flex: 1 1 40%; margin: 0; }
+#msg { text-align: center; }
+#spaceInfo { border-left: 4px solid var(--gold); }
+.cardbox.luck { border-left-color: var(--lamp) !important; } .cardbox.bonus { border-left-color: #29b6f6 !important; }
 /* Board */
 #board{display:grid;grid-template-columns:repeat(11,1fr);grid-template-rows:repeat(11,1fr);aspect-ratio:1;width:100%;gap:1px;background:#0a1a15;border:2px solid #0a1a15;border-radius:6px;overflow:hidden}
 .sq{background:#e8f1ec;color:#111;position:relative;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;align-items:center;font-size:clamp(6px,1.6vw,9px);line-height:1.05;text-align:center;min-width:0}
@@ -52,73 +53,73 @@ button:disabled{opacity:.4}
 .prop{background:#0e241e;border-radius:8px;padding:6px 8px;margin:4px 0;font-size:14px}
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .tp{display:block;font-size:13px}.tp input{width:auto;margin-right:4px}
-#log{font-size:13px;opacity:.85;background:#0e241e;padding:6px;border-radius:6px}
-table{width:100%;border-collapse:collapse;margin-top:6px}
-td,th{text-align:left;padding:4px;border-bottom:1px solid rgba(255,255,255,.15)}
 </style>
 </head>
 <body>
-<h2 style="margin:4px 0 8px">Investor</h2>
+<header class="topbar"><a class="back" href="../../" aria-label="Back to the arcade">‹</a><h1>Investor</h1></header>
 <div id="err"></div>
 
 <div id="join" class="screen on">
-  <label>Your name</label>
+  <div class="intro"><p>Roll, move around the board, buy streets, stations and utilities, collect rent, build houses and hotels, and trade. Run out of money and you're bankrupt. The last investor standing wins.</p></div>
+  <label for="name">Your name</label>
   <input id="name" maxlength="20" placeholder="Name (optional)">
-  <div class="row"><button onclick="hostGame()">Host a game</button></div>
-  <label>Or join a game</label>
-  <input id="pinIn" placeholder="Paste the join link or code">
+  <button class="wide" onclick="hostGame()">Host a game</button>
+  <div class="or">or join one</div>
+  <input id="pinIn" placeholder="Paste the join link or code" aria-label="Join link or code">
   <div id="joinHint" class="muted"></div>
-  <div class="row"><button onclick="joinGame()">Join</button></div>
-  <p class="muted">Easiest: scan the QR code on the host's screen. 2–6 players.</p>
-  <p class="muted">Roll, move around the board, buy streets, stations and utilities, collect rent, build houses and hotels, and trade. Run out of money and you're bankrupt. Last investor standing wins.</p>
+  <button class="wide ghost" onclick="joinGame()">Join</button>
+  <p class="muted">Easiest: scan the QR code on the host's phone. 2–6 players.</p>
 </div>
 
 <div id="lobby" class="screen">
-  <div class="muted">Players scan this QR code to join:</div>
-  <div id="qr" class="qr"></div>
-  <div class="muted">Or send them this link:</div>
-  <div id="joinLink" class="link"></div>
-  <div class="row"><button class="ghost" id="copyBtn" onclick="copyLink()">Copy link</button></div>
-  <div class="muted">Game PIN (shown on players' screens to confirm they're in the right game):</div>
-  <div class="pin" id="pinShow"></div>
+  <div class="ticket">
+    <div>Scan to join</div>
+    <div id="qr" class="qr"></div>
+    <div id="joinLink" class="link"></div>
+    <button class="ghost small" id="copyBtn" onclick="copyLink()">Copy link</button>
+    <div class="pinline">Game PIN<div class="pin" id="pinShow"></div></div>
+  </div>
   <div id="roster" class="row"></div>
-  <label class="muted">Fill empty seats with bots up to</label>
+  <label for="botFill">Fill empty seats with bots up to</label>
   <select id="botFill"><option value="0">No bots (at least 2 players)</option><option value="2">2 players</option><option value="3" selected>3 players</option><option value="4">4 players</option></select>
-  <div class="row">
+  <div class="dock">
+    <button class="ghost" onclick="cancelGame()">Cancel</button>
     <button onclick="startGame()">Start game</button>
-    <button class="ghost" onclick="cancelGame()">Cancel game</button>
   </div>
 </div>
 
 <div id="waiting" class="screen">
-  <div class="muted">Game PIN:</div>
-  <div class="pin" id="pinWait"></div>
-  <div id="roster2" class="row"></div>
-  <div class="row"><button class="ghost" onclick="exitGame()">Leave lobby</button></div>
+  <div class="panel" style="text-align:center">
+    <div class="muted">Game PIN</div>
+    <div class="pin" id="pinWait"></div>
+    <div id="roster2" class="row"></div>
+  </div>
+  <button class="wide ghost" onclick="exitGame()">Leave lobby</button>
 </div>
 
 <div id="game" class="screen">
   <div id="board"></div>
   <div id="spaceInfo" class="panel" style="display:none"></div>
   <div id="msg" class="row"></div>
-  <div id="actions"></div>
+  <div id="actions" class="dock"></div>
   <div id="offer" class="panel" style="display:none"></div>
   <div id="overBox" class="panel" style="display:none"></div>
-  <div class="row"><b>Players</b></div>
+  <div class="label">Players</div>
   <div id="players"></div>
-  <div class="row"><b>Your properties</b> <span class="muted">(tap a square on the board for details)</span></div>
+  <div class="label">Your properties</div><div class="muted" style="margin-bottom:6px">Tap a square on the board for details.</div>
   <div id="mine"></div>
   <div class="row"><button class="ghost" id="tradeBtn" onclick="openTrade()" style="display:none">Make a trade offer</button></div>
   <div id="tradeBox" class="panel" style="display:none"></div>
   <div class="row"><button class="ghost" id="inviteBtn" onclick="toggleInvite()" style="display:none">Invite a player to take over a bot</button></div>
   <div id="inviteBox" style="display:none">
-    <div class="muted">New players can scan this to take over a bot (with its money and properties):</div>
-    <div id="qr2" class="qr"></div>
-    <div id="joinLink2" class="link"></div>
-    <div class="row"><button class="ghost" id="copyBtn2" onclick="copyLink()">Copy link</button></div>
+    <div class="ticket">
+      <div>Scan to take over a bot, with its money and properties</div>
+      <div id="qr2" class="qr"></div>
+      <div id="joinLink2" class="link"></div>
+      <button class="ghost small" id="copyBtn2" onclick="copyLink()">Copy link</button>
+    </div>
   </div>
-  <div class="row"><b>Log</b></div>
-  <div id="log"></div>
+  <div id="log" class="log"></div>
   <div class="row">
     <button class="ghost" id="endBtn" onclick="hostEndGame()" style="display:none">End game now</button>
     <button class="ghost" id="leaveBtn" onclick="leaveOrCancel()">Leave game</button>
@@ -126,6 +127,6 @@ td,th{text-align:left;padding:4px;border-bottom:1px solid rgba(255,255,255,.15)}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
-<script type="module" src="main.js?v=1795037166"></script>
+<script type="module" src="main.js?v=1795037834"></script>
 </body>
 </html>

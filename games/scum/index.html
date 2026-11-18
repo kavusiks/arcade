@@ -4,87 +4,115 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Scum · Arcade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../lib/theme.css?v=1795037834">
 <style>
-body{font-family:system-ui,sans-serif;margin:0 auto;padding:12px;max-width:560px;background:#15532f;color:#fff}
-a{color:#ffd54a}
-.screen{display:none}.screen.on{display:block}
-input{font-size:18px;padding:10px;border-radius:8px;border:0;width:100%;box-sizing:border-box;margin:4px 0}
-button{padding:12px 16px;margin:6px 2px;border-radius:8px;border:0;font-size:16px;background:#ffd54a;color:#111}
-button.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5)}
-button:disabled{opacity:.4}
-.row{margin:8px 0}.muted{opacity:.75;font-size:14px}
-.pin{font-size:42px;letter-spacing:8px;font-weight:700;text-align:center;margin:8px 0}
-.card{display:inline-block;width:50px;height:70px;margin:3px;border-radius:7px;background:#fff;color:#111;font-weight:700;text-align:center;line-height:1.2;padding-top:12px;box-sizing:border-box;border:2px solid transparent;cursor:pointer;user-select:none;font-size:15px}
-.card.red{color:#c00}
-.card.back{cursor:default;background:repeating-linear-gradient(45deg,#8b1a1a 0 6px,#a52a2a 6px 12px);border:2px solid #fff}.card.sel{border-color:#ffd54a;transform:translateY(-8px)}
-#pile .card{cursor:default}
-#log{font-size:13px;opacity:.85;min-height:3em;background:#0c3a20;padding:6px;border-radius:6px}
-#err{color:#ffb4a8;font-size:14px}
-#scores{background:#0c3a20;padding:8px;border-radius:8px}
-#scores table{width:100%;border-collapse:collapse;margin-top:6px}
-#scores td,#scores th{text-align:left;padding:4px;border-bottom:1px solid rgba(255,255,255,.15)}
+/* Green felt under a lamp */
+:root { --table-1: #1d7a5b; --table-2: #0a3326; }
+body { background: radial-gradient(110% 60% at 50% 18%, #1f8a66, #0f4a37 55%, #0a3326) fixed; }
+.felt { position: relative; margin: 10px 0; padding: 18px 10px 16px; border-radius: 26px;
+  background: radial-gradient(100% 90% at 50% 40%, rgba(255,255,255,.08), rgba(0,0,0,.18));
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.07), inset 0 10px 30px rgba(0,0,0,.25); text-align: center; }
+#pile { display: flex; justify-content: center; min-height: 112px; align-items: center; }
+#pile .card { cursor: default; margin: 0 -14px; }
+#pile .card:nth-child(odd) { transform: rotate(-6deg); }
+#pile .card:nth-child(even) { transform: rotate(5deg) translateY(4px); }
+#pile .empty { color: rgba(255,255,255,.45); font-size: 15px; border: 2px dashed rgba(255,255,255,.2); border-radius: 12px; width: 76px; height: 106px; display: grid; place-items: center; }
+
+/* Playing cards */
+.card { position: relative; display: inline-block; flex: none; width: 66px; height: 94px; border-radius: 9px; background: linear-gradient(160deg, #fff, #f1f1ef);
+  color: #1d1d22; box-shadow: 0 1px 0 rgba(0,0,0,.25), 0 8px 18px -10px rgba(0,0,0,.7); cursor: pointer; user-select: none;
+  transition: transform .12s ease; vertical-align: top; text-align: left; }
+.card.red { color: #d0263b; }
+.card .ix { position: absolute; top: 6px; left: 7px; font: 800 17px/1 var(--display); text-align: center; }
+.card .ix i { display: block; font-style: normal; font-size: 14px; margin-top: 1px; }
+.card .pip { position: absolute; right: 7px; bottom: 4px; font-size: 34px; line-height: 1; }
+.card.sel { transform: translateY(-16px); box-shadow: 0 0 0 3px var(--lamp), 0 14px 22px -10px rgba(0,0,0,.8); }
+.card.special::after { content: ''; position: absolute; inset: 4px; border-radius: 6px; box-shadow: inset 0 0 0 1.5px rgba(208, 38, 59, .35); }
+.card.back { cursor: default; background: repeating-linear-gradient(45deg, #b8364a 0 5px, #9e2a3d 5px 10px); box-shadow: inset 0 0 0 4px #fff, 0 8px 18px -10px rgba(0,0,0,.7); }
+
+/* The hand fans out and scrolls sideways when it's wide */
+.handwrap { overflow-x: auto; padding: 22px 6px 8px; margin: 0 -14px; scrollbar-width: none; }
+#hand { display: flex; padding: 0 14px; width: max-content; min-width: 100%; justify-content: center; }
+#hand .card { margin-right: -26px; }
+#hand .card:last-child { margin-right: 0; }
+.handhead { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+.handhead .label { margin: 0; }
+#msg { text-align: center; font-size: 16px; margin: 12px 0 0; }
+#scores, #invite { text-align: left; }
+.dock { display: flex; gap: 8px; }
+.dock button { flex: 1; margin: 0; }
 </style>
 </head>
 <body>
-<h2>Scum</h2>
+<header class="topbar"><a class="back" href="../../" aria-label="Back to the arcade">‹</a><h1>Scum</h1></header>
 <div id="err"></div>
 
 <div id="join" class="screen on">
-  <label>Your name</label>
+  <div class="intro"><p>Play the cards on the table with a higher set of the same size. First out becomes President, last becomes Scum.</p></div>
+  <label for="name">Your name</label>
   <input id="name" maxlength="20" placeholder="Name (optional)">
-  <div class="row"><button onclick="hostGame()">Host a game</button></div>
-  <label>Or join a game</label>
-  <input id="pinIn" placeholder="Paste the join link or code">
+  <button class="wide" onclick="hostGame()">Host a game</button>
+  <div class="or">or join one</div>
+  <input id="pinIn" placeholder="Paste the join link or code" aria-label="Join link or code">
   <div id="joinHint" class="muted"></div>
-  <div class="row"><button onclick="joinGame()">Join</button></div>
-  <p class="muted">Easiest: scan the QR code on the host's screen. Up to 4 players. Empty seats are filled with bots when the host starts.</p>
+  <button class="wide ghost" onclick="joinGame()">Join</button>
+  <p class="muted">Easiest: scan the QR code on the host's phone. Up to 4 players; bots fill empty seats.</p>
 </div>
 
 <div id="lobby" class="screen">
-  <div class="muted">Players scan this QR code to join:</div>
-  <div id="qr" style="background:#fff;padding:10px;width:200px;min-height:200px;margin:8px auto;border-radius:8px;color:#111"></div>
-  <div class="muted">Or send them this link:</div>
-  <div id="joinLink" style="word-break:break-all;font-size:13px;background:#0c3a20;padding:6px;border-radius:6px;user-select:all"></div>
-  <div class="row"><button class="ghost" id="copyBtn" onclick="copyLink()">Copy link</button></div>
-  <div class="muted">Game PIN (shown on players' screens to confirm they're in the right game):</div>
-  <div class="pin" id="pinShow"></div>
+  <div class="ticket">
+    <div>Scan to join</div>
+    <div id="qr" class="qr"></div>
+    <div id="joinLink" class="link"></div>
+    <button class="ghost small" id="copyBtn" onclick="copyLink()">Copy link</button>
+    <div class="pinline">Game PIN<div class="pin" id="pinShow"></div></div>
+  </div>
   <div id="roster" class="row"></div>
-  <div class="row">
+  <div class="dock">
+    <button class="ghost" onclick="cancelGame()">Cancel</button>
     <button onclick="startGame()">Start game</button>
-    <button class="ghost" onclick="cancelGame()">Cancel game</button>
   </div>
 </div>
 
 <div id="waiting" class="screen">
-  <div class="muted">Game PIN:</div>
-  <div class="pin" id="pinWait"></div>
-  <div id="roster2" class="row"></div>
-  <div class="row"><button class="ghost" onclick="exitGame()">Leave lobby</button></div>
+  <div class="panel" style="text-align:center">
+    <div class="muted">Game PIN</div>
+    <div class="pin" id="pinWait"></div>
+    <div id="roster2" class="row"></div>
+  </div>
+  <button class="wide ghost" onclick="exitGame()">Leave lobby</button>
 </div>
 
 <div id="game" class="screen">
-  <div id="seats"></div>
-  <div class="row"><b>Table:</b> <span id="pile"></span></div>
-  <div id="msg" class="row"></div>
-  <div id="scores" class="row" style="display:none"></div>
-  <div class="row"><button id="nextBtn" onclick="nextRound()" style="display:none">Start next round</button></div>
+  <div id="seats" class="avatars"></div>
+  <div class="felt">
+    <div id="pile"></div>
+    <div id="msg"></div>
+  </div>
+  <div id="scores" class="panel" style="display:none"></div>
+  <button class="wide" id="nextBtn" onclick="nextRound()" style="display:none">Start next round</button>
   <div id="invite" style="display:none">
-    <div class="muted">A bot seat is free: new players can scan this to join before the next round.</div>
-    <div id="qr2" style="background:#fff;padding:10px;width:200px;min-height:200px;margin:8px auto;border-radius:8px;color:#111"></div>
-    <div id="joinLink2" style="word-break:break-all;font-size:13px;background:#0c3a20;padding:6px;border-radius:6px;user-select:all"></div>
-    <div class="row"><button class="ghost" id="copyBtn2" onclick="copyLink()">Copy link</button></div>
+    <div class="ticket">
+      <div>A bot seat is free: new players can join before the next round</div>
+      <div id="qr2" class="qr"></div>
+      <div id="joinLink2" class="link"></div>
+      <button class="ghost small" id="copyBtn2" onclick="copyLink()">Copy link</button>
+    </div>
   </div>
-  <div class="row"><b>Your hand</b> <button class="ghost" id="handBtn" onclick="toggleHand()" style="padding:6px 12px;font-size:14px">Show cards</button></div>
-  <div id="hand"></div>
-  <div class="row">
+  <div class="handhead"><div class="label">Your hand</div><button class="ghost small" id="handBtn" onclick="toggleHand()">Show cards</button></div>
+  <div class="handwrap"><div id="hand"></div></div>
+  <div class="dock">
+    <button class="ghost" id="pass" onclick="passTurn()">Pass</button>
     <button id="play" onclick="playSel()">Play selected</button>
-    <button id="pass" onclick="passTurn()">Pass</button>
   </div>
-  <div id="log"></div>
-  <div class="row"><button class="ghost" id="leaveBtn" onclick="leaveOrCancel()">Leave game</button></div>
+  <div id="log" class="log"></div>
+  <button class="ghost small" id="leaveBtn" onclick="leaveOrCancel()">Leave game</button>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
-<script type="module" src="main.js?v=1794967286"></script>
+<script type="module" src="main.js?v=1795037834"></script>
 </body>
 </html>

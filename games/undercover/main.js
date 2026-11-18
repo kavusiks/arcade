@@ -1,14 +1,14 @@
 // Undercover UI and networking. The host runs the engine; players send actions and render what the host sends.
 // Sessions are kept in sessionStorage so a refresh rejoins the same game in the same tab.
-import { createGame, newRound, act, tick, leave, addPlayer, view, secretFor, activeSeats, MIN_PLAYERS, MAX_PLAYERS, DURATIONS } from './engine.js?v=1795029977';
-import { pictureSVG } from './pictures.js?v=1795029977';
-import { LOCATIONS } from './locations.js?v=1795029977';
+import { createGame, newRound, act, tick, leave, addPlayer, view, secretFor, activeSeats, MIN_PLAYERS, MAX_PLAYERS, DURATIONS } from './engine.js?v=1795037834';
+import { pictureSVG } from './pictures.js?v=1795037834';
+import { LOCATIONS } from './locations.js?v=1795037834';
 
 const $ = id => document.getElementById(id);
 let libs = null;
 function showErr(t) { $('err').textContent = t || ''; }
 // Load networking separately so the buttons still work (and show errors) if it fails.
-import('../../lib/lobby.js?v=1795029977')
+import('../../lib/lobby.js?v=1795037834')
   .then(m => { libs = m; if (!joinFromHash()) resume(); })
   .catch(e => showErr('Networking failed to load: ' + e.message + '. Check your connection and reload.'));
 
@@ -377,10 +377,15 @@ function renderTimer() {
   if (!v) return;
   let left = v.timeLeft;
   if (!isHost && v.phase === 'play') left = Math.max(0, v.timeLeft - (Date.now() - V_at));
-  $('timer').textContent = v.phase === 'play' ? fmt(left)
-    : v.phase === 'vote' ? fmt(left) + ' (paused for the vote)'
-    : v.phase === 'final' ? "Time's up" : '';
-  $('timer').classList.toggle('low', v.phase === 'play' && left < 60000);
+  $('timer').textContent = v.phase === 'play' || v.phase === 'vote' ? fmt(left) : v.phase === 'final' ? "Time's up" : '';
+  $('timerSub').textContent = v.phase === 'vote' ? 'Paused for the vote' : '';
+  // The ring empties as time runs out.
+  const total = (v.minutes || 8) * 60000;
+  const frac = v.phase === 'play' || v.phase === 'vote' ? Math.max(0, Math.min(1, left / total)) : 0;
+  $('ring').setAttribute('stroke-dashoffset', String(477.5 * (1 - frac)));
+  $('clock').classList.toggle('low', (v.phase === 'play' || v.phase === 'vote') && left < 60000);
+  $('clock').classList.toggle('done', v.phase === 'final');
+  $('clock').style.display = v.phase === 'over' ? 'none' : '';
 }
 
 // Invite block (QR + link). Shown in the lobby, and on the host's game screen between rounds.
@@ -400,8 +405,9 @@ function renderLobby() {
   $('pinShow').textContent = pin;
   renderInvite('qr', 'joinLink');
   const names = [myName + ' (host)', ...[...roster.values()].map(r => r.name)];
-  $('roster').innerHTML = '<b>Players (' + names.length + '/' + MAX_PLAYERS + '):</b> ' + names.map(esc).join(', ') +
-    (names.length < MIN_PLAYERS ? '<br><span class="muted">Waiting for at least ' + MIN_PLAYERS + ' players.</span>' : '');
+  $('roster').innerHTML = '<div class="label">Players (' + names.length + '/' + MAX_PLAYERS + ')</div><div class="avatars">' +
+    names.map((n, i) => avatar(n, i)).join('') + '</div>' +
+    (names.length < MIN_PLAYERS ? '<div class="muted">You need at least ' + MIN_PLAYERS + ' players.</div>' : '');
   $('lobbyErr').textContent = err;
 }
 
@@ -421,6 +427,14 @@ function renderWaiting() {
     : 'Searching for the host… this can take up to 30 seconds.';
 }
 
+// Round avatar with an initial, a badge and a short status line.
+const SEAT_COLORS = ['#ff7a59', '#4f8cff', '#c77dff', '#ffb648', '#36c2d6', '#ff5c7a', '#9ccc65', '#f06292'];
+function avatar(name, i, { now = false, gone = false, badge = '', tag = '' } = {}) {
+  const initial = esc((String(name).trim()[0] || '?').toUpperCase());
+  return `<div class="av${now ? ' now' : ''}${gone ? ' gone' : ''}"><div class="face" style="--c:${SEAT_COLORS[i % SEAT_COLORS.length]}">${initial}` +
+    (badge !== '' ? `<span class="badge">${badge}</span>` : '') + `</div><div>${esc(name)}</div>` + (tag ? `<div class="tag">${tag}</div>` : '') + `</div>`;
+}
+
 function options(list, placeholder) {
   return '<option value="">' + esc(placeholder) + '</option>' + list.map(([v, label]) => '<option value="' + v + '">' + esc(label) + '</option>').join('');
 }
@@ -434,20 +448,22 @@ function renderGame() {
   if (crossedRound !== v.round) { crossed = new Set(); crossedRound = v.round; cardVisible = false; }
 
   // Players
-  $('seats').innerHTML = v.players.map((p, i) => p.gone ? '' :
-    '<div class="muted">' + esc(name(i)) + (p.away ? ' (disconnected)' : '') +
-    (i === v.dealer && v.phase !== 'over' ? ' · asks first' : '') +
-    (v.accused.includes(i) && v.phase !== 'over' ? ' · accusation used' : '') + '</div>').join('');
+  $('seats').innerHTML = v.players.map((p, i) => p.gone ? '' : avatar(name(i), i, {
+    now: i === v.dealer && v.phase !== 'over',
+    badge: p.score,
+    tag: p.away ? 'disconnected' : i === v.dealer && v.phase !== 'over' ? 'asks first' : v.accused.includes(i) && v.phase !== 'over' ? 'has accused' : '',
+  })).join('');
 
   // My card
   let card = '';
   if (!s) card = 'Waiting for the next round…';
   else if (s.joinedLate) card = 'You joined during this round. You get a card next round.';
-  else if (!cardVisible) card = '<span class="muted">Hidden</span>';
-  else if (s.spy) card = '<div class="big">You are the SPY</div><div class="muted">Work out the location from the questions, without being found out.</div>';
+  else if (!cardVisible) card = '<div class="seal">?</div><div><b>Hidden</b></div><div class="muted">Make sure nobody is looking, then show your card.</div>';
+  else if (s.spy) card = '<div class="muted">Your secret</div><div class="big">You are the SPY</div><div class="muted">Work out the location from the questions, without being found out.</div>';
   else card = '<div class="muted">Location</div><div class="big">' + esc(LOCATIONS[s.location].name) + '</div><div class="muted">Your role: ' + esc(s.role) + '</div>';
   if (s && cardVisible && !s.spy && !s.joinedLate) card = pictureSVG(LOCATIONS[s.location].name, 'pic card-pic') + card;
   setHTML('card', card);
+  $('dossier').className = 'dossier' + (!s || s.joinedLate || !cardVisible ? ' sealed' : s.spy ? ' spy' : '');
   $('cardBtn').textContent = cardVisible ? 'Hide my card' : 'Show my card';
   $('cardBtn').style.display = s && !s.joinedLate ? '' : 'none';
 
@@ -537,6 +553,6 @@ function calmMotion(root) {
 function scoreTable(v, me) {
   const rows = v.players.map((p, i) => ({ i, p })).filter(x => !x.p.gone).sort((a, b) => b.p.score - a.p.score);
   return '<table><tr><th>Player</th><th>Points</th></tr>' +
-    rows.map(x => '<tr><td>' + esc(x.i === me ? 'You' : x.p.name) + '</td><td>' + x.p.score + '</td></tr>').join('') + '</table>' +
+    rows.map(x => '<tr' + (x.i === me ? ' class="me"' : '') + '><td>' + esc(x.i === me ? 'You' : x.p.name) + '</td><td>' + x.p.score + '</td></tr>').join('') + '</table>' +
     '<div class="muted">Agents win: +1 each, +1 extra for whoever accused the spy. Spy wins: +2, or +4 for guessing the location.</div>';
 }

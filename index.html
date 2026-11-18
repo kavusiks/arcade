@@ -4,24 +4,94 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Arcade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lib/theme.css?v=1795037834">
 <style>
-body{font-family:system-ui,sans-serif;margin:0 auto;padding:16px;max-width:560px;background:#111;color:#eee}
-h1{margin-top:8px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-a.tile{display:block;padding:24px 12px;border-radius:12px;background:#1f2a24;color:#fff;text-decoration:none;text-align:center;font-weight:600}
-a.tile:hover{background:#2c3d33}
-.soon{opacity:.45;pointer-events:none}
+:root { --table-1: #2b3166; --table-2: #12152b; }
+.hero { padding: calc(28px + env(safe-area-inset-top)) 0 8px; }
+.hero h1 { margin: 0; font: 800 clamp(56px, 18vw, 92px)/.9 var(--display); letter-spacing: -.045em; }
+.hero h1 span { display: inline-block; }
+.hero h1 span:nth-child(odd) { transform: rotate(-3deg); }
+.hero h1 span:nth-child(even) { transform: rotate(2.5deg) translateY(4px); }
+.hero h1 span:nth-child(1) { color: var(--lamp); }
+.hero h1 span:nth-child(3) { color: var(--mint); }
+.hero h1 span:nth-child(5) { color: var(--coral); }
+.hero p { margin: 14px 0 0; max-width: 30em; font-size: 18px; color: rgba(238, 241, 247, .82); }
+
+.games { display: grid; gap: 14px; margin: 26px 0; }
+.game {
+  display: grid; grid-template-columns: 112px 1fr; align-items: center; gap: 14px;
+  padding: 12px 14px 12px 12px; border-radius: 22px; color: var(--chalk); text-decoration: none;
+  background: var(--bg); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+  transition: transform .1s ease;
+}
+.game:active { transform: scale(.98); }
+.game svg { width: 112px; height: 84px; display: block; }
+.game h2 { margin: 0; font-size: 24px; line-height: 1.1; }
+.game p { margin: 4px 0 6px; font-size: 15px; color: rgba(238, 241, 247, .8); }
+.game .who { font-size: 13.5px; color: rgba(238, 241, 247, .62); }
+.scum { --bg: radial-gradient(120% 140% at 0% 0%, #1f7a5c, #0d3d2e); }
+.four { --bg: radial-gradient(120% 140% at 0% 0%, #3a3c66, #1c1d33); }
+.under { --bg: radial-gradient(120% 140% at 0% 0%, #4b2d5e, #1e1228); }
+.invest { --bg: radial-gradient(120% 140% at 0% 0%, #1d5c49, #0b2b22); }
+
+.how { margin: 8px 0 30px; }
+.how h2 { font-size: 22px; margin: 0 0 6px; }
+.how ol { margin: 0; padding-left: 22px; }
+.how li { margin: 4px 0; }
 </style>
 </head>
 <body>
-<h1>Arcade</h1>
-<p>Pick a game. Host creates a room and shares the PIN; everyone else joins with it.</p>
-<div class="grid">
-  <a class="tile" href="games/scum/">Scum</a>
-  <a class="tile" href="games/fourcolor/">4Color</a>
-  <a class="tile" href="games/undercover/">Undercover</a>
-  <a class="tile" href="games/investor/">Investor</a>
-  <a class="tile soon" href="#">More games soon</a>
-</div>
+<header class="hero">
+  <h1><span>A</span><span>r</span><span>c</span><span>a</span><span>d</span><span>e</span></h1>
+  <p>Party games for one room. Everyone plays on their own phone, and nobody installs anything.</p>
+</header>
+
+<main class="games">
+  <a class="game scum" href="games/scum/">
+    <svg viewBox="0 0 112 84" aria-hidden="true">
+      <g transform="rotate(-14 56 70)"><rect x="30" y="14" width="36" height="52" rx="5" fill="#fff"/><text x="36" y="28" font-size="11" font-weight="700" fill="#111" font-family="sans-serif">K</text><text x="48" y="50" font-size="18" fill="#111">♠</text></g>
+      <g transform="rotate(0 56 70)"><rect x="38" y="10" width="36" height="52" rx="5" fill="#fff"/><text x="44" y="24" font-size="11" font-weight="700" fill="#d32f2f" font-family="sans-serif">A</text><text x="55" y="46" font-size="18" fill="#d32f2f">♥</text></g>
+      <g transform="rotate(14 56 70)"><rect x="46" y="14" width="36" height="52" rx="5" fill="#fff"/><text x="52" y="28" font-size="11" font-weight="700" fill="#111" font-family="sans-serif">3</text><text x="63" y="50" font-size="18" fill="#111">♣</text></g>
+    </svg>
+    <div><h2>Scum</h2><p>Get rid of your cards first and become President.</p><div class="who">4 players, bots fill empty seats</div></div>
+  </a>
+  <a class="game four" href="games/fourcolor/">
+    <svg viewBox="0 0 112 84" aria-hidden="true">
+      <rect x="18" y="20" width="34" height="50" rx="6" fill="#e53935" transform="rotate(-12 35 45)"/>
+      <rect x="34" y="14" width="34" height="50" rx="6" fill="#fbc02d" transform="rotate(-2 51 39)"/>
+      <rect x="52" y="16" width="34" height="50" rx="6" fill="#1e88e5" transform="rotate(10 69 41)"/>
+      <g transform="rotate(10 69 41)"><rect x="57" y="22" width="24" height="38" rx="4" fill="none" stroke="#fff" stroke-width="2" opacity=".6"/><text x="69" y="48" font-size="18" font-weight="800" fill="#fff" text-anchor="middle" font-family="sans-serif">+2</text></g>
+    </svg>
+    <div><h2>4Color</h2><p>Match the colour or the number. Don't forget to call your last card.</p><div class="who">2–6 players, with optional bots</div></div>
+  </a>
+  <a class="game under" href="games/undercover/">
+    <svg viewBox="0 0 112 84" aria-hidden="true">
+      <path d="M20 22 h30 l6 6 h36 v46 h-72 z" fill="#d9a45b"/><rect x="20" y="30" width="72" height="44" rx="2" fill="#e8bd78"/>
+      <circle cx="56" cy="48" r="13" fill="#2a1a33"/><path d="M38 40 h36 l-4 -8 h-28 z" fill="#2a1a33"/><rect x="34" y="39" width="44" height="3" rx="1.5" fill="#2a1a33"/>
+      <circle cx="51" cy="50" r="3" fill="#e8bd78"/><circle cx="61" cy="50" r="3" fill="#e8bd78"/>
+    </svg>
+    <div><h2>Undercover</h2><p>Everyone knows the place except the spy. Ask questions and find them.</p><div class="who">3–8 players, talking out loud</div></div>
+  </a>
+  <a class="game invest" href="games/investor/">
+    <svg viewBox="0 0 112 84" aria-hidden="true">
+      <rect x="22" y="14" width="68" height="58" rx="4" fill="#f3efe2"/><rect x="22" y="14" width="68" height="14" rx="4" fill="#e53935"/><rect x="22" y="24" width="68" height="4" fill="#e53935"/>
+      <rect x="32" y="36" width="48" height="3" rx="1.5" fill="#9e9a8a"/><rect x="32" y="44" width="36" height="3" rx="1.5" fill="#9e9a8a"/><rect x="32" y="52" width="42" height="3" rx="1.5" fill="#9e9a8a"/>
+      <path d="M76 52 l10 -9 l10 9 v14 h-20 z" fill="#2e7d32"/><rect x="83" y="58" width="6" height="8" fill="#f3efe2"/>
+    </svg>
+    <div><h2>Investor</h2><p>Buy streets, build houses, collect rent and trade your way to the top.</p><div class="who">2–6 players, with optional bots</div></div>
+  </a>
+</main>
+
+<section class="how">
+  <h2>How to play</h2>
+  <ol>
+    <li>One person picks a game and presses Host.</li>
+    <li>Everyone else scans the QR code on the host's phone.</li>
+    <li>Type your name, join, and play.</li>
+  </ol>
+</section>
 </body>
 </html>

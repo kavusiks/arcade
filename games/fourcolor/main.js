@@ -1,12 +1,12 @@
 // 4Color UI and networking. The host runs the engine; players send actions and render what the host sends.
 // Sessions are kept in sessionStorage so a refresh rejoins the same game in the same tab.
-import { createGame, newRound, act, botMove, view, canPlay, COLORS, COLOR_NAMES, cardText, MAX_SEATS } from './engine.js?v=1795027734';
+import { createGame, newRound, act, botMove, view, canPlay, COLORS, COLOR_NAMES, cardText, MAX_SEATS } from './engine.js?v=1795037834';
 
 const $ = id => document.getElementById(id);
 let libs = null;
 function showErr(t) { $('err').textContent = t || ''; }
 // Load networking separately so the buttons still work (and show errors) if it fails.
-import('../../lib/lobby.js?v=1795027734')
+import('../../lib/lobby.js?v=1795037834')
   .then(m => { libs = m; if (!joinFromHash()) resume(); })
   .catch(e => showErr('Networking failed to load: ' + e.message + '. Check your connection and reload.'));
 
@@ -399,7 +399,8 @@ function renderLobby() {
   $('pinShow').textContent = pin;
   renderInvite('qr', 'joinLink');
   const names = [myName + ' (host)', ...[...roster.values()].map(r => r.name)];
-  $('roster').innerHTML = '<b>Players (' + names.length + '/' + MAX_SEATS + '):</b> ' + names.map(esc).join(', ');
+  $('roster').innerHTML = '<div class="label">Players (' + names.length + '/' + MAX_SEATS + ')</div><div class="avatars">' +
+    names.map((n, i) => avatar(n, i)).join('') + '</div>';
 }
 
 async function copyLink() {
@@ -419,11 +420,25 @@ function renderWaiting() {
 }
 
 // Card values and ids are cleaned before rendering, so they are safe to put in HTML.
+// Symbols on the cards. Card values are cleaned against a fixed list, so they are safe in HTML.
+const GLYPH = { skip: '⊘', rev: '⇄', d2: '+2', w4: '+4', wild: '' };
 function cardHTML(c, { playable = false, drawn = false } = {}) {
   const cls = 'fc fc-' + c.c + (playable ? ' playable' : '') + (drawn ? ' drawn' : '');
   const click = playable ? ` onclick="playCard(${c.id})"` : '';
-  return `<span class="${cls}"${click}>${esc(cardText(c))}</span>`;
+  const g = c.v in GLYPH ? GLYPH[c.v] : c.v;
+  const mid = c.c === 'w' ? `<span class="wheel"></span>${c.v === 'w4' ? '<span class="lbl">+4</span>' : ''}` : esc(g);
+  const corner = c.c === 'w' ? (c.v === 'w4' ? '+4' : 'W') : esc(g);
+  return `<span class="${cls}"${click} aria-label="${esc(cardText(c))}"><span class="c1">${corner}</span>${mid}<span class="c2">${corner}</span></span>`;
 }
+
+// Round avatar with an initial, a badge and a short status line.
+const SEAT_COLORS = ['#ff7a59', '#4f8cff', '#c77dff', '#ffb648', '#36c2d6', '#ff5c7a', '#9ccc65', '#f06292'];
+function avatar(name, i, { now = false, gone = false, badge = '', tag = '' } = {}) {
+  const initial = esc((String(name).trim()[0] || '?').toUpperCase());
+  return `<div class="av${now ? ' now' : ''}${gone ? ' gone' : ''}"><div class="face" style="--c:${SEAT_COLORS[i % SEAT_COLORS.length]}">${initial}` +
+    (badge !== '' ? `<span class="badge">${badge}</span>` : '') + `</div><div>${esc(name)}</div>` + (tag ? `<div class="tag">${tag}</div>` : '') + `</div>`;
+}
+const HEX = { r: 'var(--r)', y: 'var(--y)', g: 'var(--g)', b: 'var(--b)' };
 
 function renderGame(v, hand, me) {
   show('game');
@@ -431,14 +446,19 @@ function renderGame(v, hand, me) {
   const myTurn = v.turn === me && !v.roundOver && connected;
   const drawn = myDrawnNow();
 
-  $('seats').innerHTML = v.players.map((p, i) =>
-    '<div class="muted' + (i === v.turn && !v.roundOver ? ' turn' : '') + '">' + (!v.roundOver && i === v.turn ? '▶ ' : '') +
-    (i === me ? 'You' : esc(p.name)) + (p.bot ? ' 🤖' : '') + (p.away ? ' (disconnected)' : '') + ': ' +
-    p.count + (p.count === 1 ? ' card' : ' cards') + (p.count === 1 && p.called ? ' · "Last card!"' : '') + '</div>'
-  ).join('') + '<div class="muted">Direction: ' + (v.dir === 1 ? '↓ down the list' : '↑ up the list') + ' · Deck: ' + v.deckCount + '</div>';
+  $('seats').innerHTML = v.players.map((p, i) => avatar(i === me ? 'You' : p.name, i, {
+    now: !v.roundOver && i === v.turn,
+    badge: p.count,
+    tag: p.away ? 'disconnected' : p.count === 1 && p.called ? '"Last card!"' : p.count + (p.count === 1 ? ' card' : ' cards'),
+  })).join('');
 
   $('top').innerHTML = v.top ? cardHTML(v.top) : '';
-  $('colorNow').innerHTML = 'Colour: <span class="dot fc-' + v.color + '"></span> ' + COLOR_NAMES[v.color];
+  $('table').style.setProperty('--now', HEX[v.color] || 'var(--r)');
+  $('colorNow').innerHTML = '<span class="swatch"></span>' + COLOR_NAMES[v.color];
+  $('deckCount').textContent = v.deckCount + ' left';
+  $('dirIcon').textContent = v.dir === 1 ? '↻' : '↺';
+  $('dirIcon').className = 'dir ' + (v.dir === 1 ? 'cw' : 'ccw');
+  $('dirIcon').title = v.dir === 1 ? 'Play goes left to right' : 'Play goes right to left';
 
   const fake = { color: v.color, discard: [v.top] }; // enough of the game state to check playability locally
   $('hand').innerHTML = handVisible
@@ -468,6 +488,7 @@ function renderGame(v, hand, me) {
   $('log').innerHTML = v.log.map(esc).join('<br>');
   $('leaveBtn').textContent = isHost ? 'Cancel game' : 'Leave game';
   $('nextBtn').style.display = isHost && v.roundOver ? '' : 'none';
+  $('drawBtn').parentElement.style.display = v.roundOver ? 'none' : '';
   const inviting = isHost && v.roundOver && G.players.some((p, i) => i > 0 && p.bot);
   $('invite').style.display = inviting ? '' : 'none';
   if (inviting) renderInvite('qr2', 'joinLink2');
@@ -480,8 +501,8 @@ function renderScores(v, me) {
   box.style.display = '';
   const rows = v.players.map((p, i) => ({ i, name: i === me ? 'You' : p.name, score: v.scores[i] || 0 }))
     .sort((a, b) => b.score - a.score);
-  box.innerHTML = '<b>Scoreboard</b> <span class="muted">(the winner scores the cards left in everyone else\'s hands)</span><table>' +
+  box.innerHTML = '<h2 style="margin:0">Scoreboard</h2><div class="muted">The winner scores the cards left in everyone else\'s hands</div><table>' +
     '<tr><th>Player</th><th>This round</th><th>Points</th></tr>' +
-    rows.map(r => '<tr><td>' + esc(r.name) + '</td><td>' + (r.i === v.winner ? 'Winner, +' + v.lastPoints : '') + '</td><td>' + r.score + '</td></tr>').join('') +
+    rows.map(r => '<tr' + (r.i === me ? ' class="me"' : '') + '><td>' + esc(r.name) + '</td><td>' + (r.i === v.winner ? 'Winner, +' + v.lastPoints : '') + '</td><td>' + r.score + '</td></tr>').join('') +
     '</table>';
 }

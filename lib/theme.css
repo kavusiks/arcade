@@ -1,0 +1,152 @@
+/* Arcade shared theme: the shell every game page uses. Game pages set their own table colours
+   through the --table-* variables and add game-specific styles on top. */
+:root {
+  --night: #1b1f3b;
+  --night-2: #252a4f;
+  --chalk: #eef1f7;
+  --lamp: #ffb648;
+  --lamp-ink: #2b1a00;
+  --mint: #3ddc97;
+  --coral: #ff5c7a;
+  --table-1: #252a4f;           /* lit centre of the table */
+  --table-2: #12152b;           /* table edge */
+  --panel: rgba(255, 255, 255, .06);
+  --line: rgba(255, 255, 255, .14);
+  --display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --body: 'Atkinson Hyperlegible', system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0 auto;
+  max-width: 600px;
+  min-height: 100vh;
+  padding: 0 14px calc(24px + env(safe-area-inset-bottom));
+  font: 17px/1.45 var(--body);
+  color: var(--chalk);
+  background: radial-gradient(120% 70% at 50% 0%, var(--table-1), var(--table-2) 75%) fixed, var(--table-2);
+}
+
+/* ---------- top bar ---------- */
+.topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: calc(10px + env(safe-area-inset-top)) 0 10px;
+}
+.topbar .back {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: 12px;
+  background: var(--panel); color: var(--chalk); text-decoration: none; font-size: 20px;
+}
+.topbar h1 {
+  margin: 0; font: 800 26px/1 var(--display); letter-spacing: -.02em;
+}
+
+/* ---------- type ---------- */
+h2, .big { font-family: var(--display); font-weight: 800; letter-spacing: -.02em; }
+.big { font-size: 26px; line-height: 1.1; margin: 4px 0; }
+.muted { color: rgba(238, 241, 247, .68); font-size: 15px; }
+#err, .err { color: var(--coral); font-size: 15px; min-height: 0; }
+#err:not(:empty) { padding: 8px 12px; margin: 6px 0; border-radius: 12px; background: rgba(255, 92, 122, .12); }
+b { font-weight: 700; }
+
+/* ---------- screens ---------- */
+.screen { display: none; }
+.screen.on { display: block; animation: screenIn .25s ease-out; }
+@keyframes screenIn { from { opacity: 0; transform: translateY(6px); } }
+.row { margin: 10px 0; }
+
+/* ---------- controls ---------- */
+input, select {
+  width: 100%; margin: 6px 0; padding: 13px 14px;
+  font: 17px var(--body); color: var(--chalk);
+  background: rgba(0, 0, 0, .25); border: 1.5px solid var(--line); border-radius: 14px;
+}
+input::placeholder { color: rgba(238, 241, 247, .45); }
+input:focus, select:focus { outline: none; border-color: var(--lamp); }
+label { display: block; margin-top: 10px; font-size: 15px; color: rgba(238, 241, 247, .8); }
+input[type=checkbox] { width: auto; margin: 0 6px 0 0; accent-color: var(--lamp); }
+
+button {
+  font: 700 17px var(--body);
+  padding: 13px 18px; margin: 4px 2px;
+  border: 0; border-radius: 999px; cursor: pointer;
+  color: var(--lamp-ink); background: var(--lamp);
+  box-shadow: 0 6px 18px -8px rgba(255, 182, 72, .8);
+  transition: transform .08s ease, filter .15s ease;
+}
+button:active { transform: scale(.96); }
+button:disabled { opacity: .38; box-shadow: none; cursor: default; transform: none; }
+button.ghost { color: var(--chalk); background: var(--panel); box-shadow: inset 0 0 0 1.5px var(--line); }
+button.no { color: #2b0010; background: var(--coral); box-shadow: 0 6px 18px -8px rgba(255, 92, 122, .8); }
+button.small { padding: 7px 12px; font-size: 14px; }
+button.wide { display: block; width: 100%; margin: 8px 0; }
+:focus-visible { outline: 3px solid var(--lamp); outline-offset: 2px; }
+
+/* Main in-game buttons stay within thumb reach at the bottom of the screen. */
+.dock {
+  position: sticky; bottom: 0; z-index: 5;
+  margin: 10px -14px 0; padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--table-2) 70%, transparent);
+}
+.dock:empty { display: none; }
+
+/* ---------- panels ---------- */
+.panel { background: var(--panel); border-radius: 18px; padding: 14px; margin: 10px 0; }
+
+/* ---------- join screen ---------- */
+.intro { margin: 14px 0 6px; }
+.intro p { margin: 6px 0; max-width: 36em; }
+.or { display: flex; align-items: center; gap: 10px; margin: 18px 0 4px; color: rgba(238, 241, 247, .6); font-size: 15px; }
+.or::before, .or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+/* ---------- lobby: the invite is a ticket ---------- */
+.ticket {
+  position: relative; margin: 12px 0; padding: 16px; border-radius: 18px;
+  color: #1b1f3b; background: var(--chalk); text-align: center;
+}
+/* Notches cut out of both edges, so whatever is behind shows through. */
+.ticket {
+  -webkit-mask: radial-gradient(circle 11px at 0 62%, #0000 98%, #000) left / 51% 100% no-repeat,
+                radial-gradient(circle 11px at 100% 62%, #0000 98%, #000) right / 51% 100% no-repeat;
+          mask: radial-gradient(circle 11px at 0 62%, #0000 98%, #000) left / 51% 100% no-repeat,
+                radial-gradient(circle 11px at 100% 62%, #0000 98%, #000) right / 51% 100% no-repeat;
+}
+.ticket .qr { width: 200px; min-height: 200px; margin: 4px auto 12px; }
+.ticket .qr img, .ticket .qr canvas { margin: 0 auto; }
+.ticket .link { font-size: 12px; word-break: break-all; color: #4a5070; user-select: all; }
+.ticket .pinline { margin-top: 12px; padding-top: 12px; border-top: 2px dashed #c8cede; font-size: 14px; color: #4a5070; }
+.pin { font: 800 40px/1 var(--display); letter-spacing: .12em; margin: 4px 0; }
+.ticket button.ghost { color: #1b1f3b; background: #dde2ee; box-shadow: none; }
+.qr { background: #fff; padding: 10px; border-radius: 12px; }
+
+/* ---------- people ---------- */
+.avatars { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0; }
+.av { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 64px; text-align: center; font-size: 13px; line-height: 1.15; }
+.av .face {
+  position: relative; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%;
+  font: 800 18px var(--display); color: #fff; background: var(--c, #555);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, .08);
+}
+.av.now .face { box-shadow: 0 0 0 3px var(--mint), 0 0 18px 2px rgba(61, 220, 151, .55); }
+.av.gone { opacity: .35; }
+.av .badge {
+  position: absolute; right: -6px; bottom: -4px; min-width: 22px; padding: 1px 6px; border-radius: 999px;
+  font: 700 12px var(--body); color: var(--night); background: var(--chalk);
+}
+.av .tag { font-size: 11.5px; color: rgba(238, 241, 247, .65); }
+
+/* ---------- log & tables ---------- */
+.log { font-size: 14px; line-height: 1.5; color: rgba(238, 241, 247, .72); padding: 10px 14px; border-left: 3px solid var(--line); margin: 10px 0; }
+table { width: 100%; border-collapse: collapse; margin-top: 8px; font-variant-numeric: tabular-nums; }
+td, th { text-align: left; padding: 7px 6px; border-bottom: 1px solid var(--line); }
+th { font-weight: 400; color: rgba(238, 241, 247, .6); font-size: 14px; }
+tr.me td { font-weight: 700; }
+
+/* ---------- section titles inside game screens ---------- */
+.label { margin: 18px 0 6px; font: 700 16px var(--display); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
