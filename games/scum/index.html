@@ -10,6 +10,7 @@ a{color:#ffd54a}
 .screen{display:none}.screen.on{display:block}
 input{font-size:18px;padding:10px;border-radius:8px;border:0;width:100%;box-sizing:border-box;margin:4px 0}
 button{padding:12px 16px;margin:6px 2px;border-radius:8px;border:0;font-size:16px;background:#ffd54a;color:#111}
+button.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5)}
 button:disabled{opacity:.4}
 .row{margin:8px 0}.muted{opacity:.75;font-size:14px}
 .pin{font-size:42px;letter-spacing:8px;font-weight:700;text-align:center;margin:8px 0}
@@ -17,15 +18,19 @@ button:disabled{opacity:.4}
 .card.red{color:#c00}.card.sel{border-color:#ffd54a;transform:translateY(-8px)}
 #pile .card{cursor:default}
 #log{font-size:13px;opacity:.85;min-height:3em;background:#0c3a20;padding:6px;border-radius:6px}
+#err{color:#ffb4a8;font-size:14px}
+#scores{background:#0c3a20;padding:8px;border-radius:8px}
+#scores table{width:100%;border-collapse:collapse;margin-top:6px}
+#scores td,#scores th{text-align:left;padding:4px;border-bottom:1px solid rgba(255,255,255,.15)}
 </style>
 </head>
 <body>
 <h2>Scum</h2>
-<div id="err" style="color:#ffb4a8;font-size:14px"></div>
+<div id="err"></div>
 
 <div id="join" class="screen on">
   <label>Your name</label>
-  <input id="name" maxlength="20" placeholder="Name">
+  <input id="name" maxlength="20" placeholder="Name (optional)">
   <div class="row"><button onclick="hostGame()">Host a game</button></div>
   <label>Or join with a PIN</label>
   <input id="pinIn" inputmode="numeric" maxlength="4" placeholder="4-digit PIN">
@@ -37,18 +42,25 @@ button:disabled{opacity:.4}
   <div class="muted">Share this PIN:</div>
   <div class="pin" id="pinShow"></div>
   <div id="roster" class="row"></div>
-  <div class="row"><button id="start" onclick="startGame()">Start game</button></div>
+  <div class="row">
+    <button onclick="startGame()">Start game</button>
+    <button class="ghost" onclick="cancelGame()">Cancel game</button>
+  </div>
 </div>
 
 <div id="waiting" class="screen">
-  <p>Joining room…</p>
+  <div class="muted">Game PIN:</div>
+  <div class="pin" id="pinWait"></div>
   <div id="roster2" class="row"></div>
+  <div class="row"><button class="ghost" onclick="exitGame()">Leave lobby</button></div>
 </div>
 
 <div id="game" class="screen">
   <div id="seats"></div>
   <div class="row"><b>Table:</b> <span id="pile"></span></div>
   <div id="msg" class="row"></div>
+  <div id="scores" class="row" style="display:none"></div>
+  <div class="row"><button id="nextBtn" onclick="nextRound()" style="display:none">Start next round</button></div>
   <div class="row"><b>Your hand</b></div>
   <div id="hand"></div>
   <div class="row">
@@ -56,8 +68,9 @@ button:disabled{opacity:.4}
     <button id="pass" onclick="passTurn()">Pass</button>
   </div>
   <div id="log"></div>
+  <div class="row"><button class="ghost" id="leaveBtn" onclick="leaveOrCancel()">Leave game</button></div>
 </div>
 
-<script type="module" src="main.js?v=1794964133"></script>
+<script type="module" src="main.js?v=1794964688"></script>
 </body>
 </html>

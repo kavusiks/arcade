@@ -1,110 +1,259 @@
-// Scum UI and networking. The host runs the engine; clients send moves and render what the host sends.
-import { createGame, newRound, act, botChoice, view, RANKS, SUITS } from './engine.js?v=1794964133';
+// Scum UI and networking. The host runs the engine; players send moves and render what the host sends.
+// Sessions are kept in sessionStorage so a refresh rejoins the same game in the same tab.
+import { createGame, newRound, act, botChoice, view, RANKS, SUITS, TITLES } from './engine.js?v=1794964688';
 
 const $ = id => document.getElementById(id);
-// Load networking separately so the buttons still work (and show errors) if it fails.
 let libs = null;
-function showErr(t) { $('err').textContent = t; }
-import('../../lib/lobby.js?v=1794964133')
-  .then(m => { libs = m; })
+function showErr(t) { $('err').textContent = t || ''; }
+// Load networking separately so the buttons still work (and show errors) if it fails.
+import('../../lib/lobby.js?v=1794964688')
+  .then(m => { libs = m; resume(); })
   .catch(e => showErr('Networking failed to load: ' + e.message + '. Check your connection and reload.'));
+
 const BOT_NAMES = ['Ada', 'Ben', 'Cy'];
-const key = c => c.r + ',' + c.s;
-// Everything from the network is untrusted: escape text, coerce cards to small integers.
+
+// ---------- helpers: everything from the network is untrusted ----------
+const cardKey = c => c.r + ',' + c.s;
 const esc = t => String(t).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 const int = (x, lo, hi) => { const n = Number(x); return Number.isInteger(n) && n >= lo && n <= hi ? n : null; };
 const cleanCard = c => { const r = int(c && c.r, 0, 12), s = int(c && c.s, 0, 3); return r === null || s === null ? null : { r, s }; };
 const cleanCards = (a, max) => Array.isArray(a) ? a.slice(0, max).map(cleanCard).filter(Boolean) : [];
-// Simple flood protection: at most 10 messages per second per peer.
-const rate = new Map();
+const rate = new Map(); // flood protection: at most 10 messages per second per peer
 function tooFast(peer) {
   const now = Date.now(), r = rate.get(peer) || { t: now, n: 0 };
   if (now - r.t > 1000) { r.t = now; r.n = 0; }
   r.n++; rate.set(peer, r);
   return r.n > 10;
 }
-const same = (a, b) => a.r === b.r && a.s === b.s;
 
-let lobby = null, isHost = false, myName = '', seat = -1, hostId = null;
-let G = null, seatPeer = [], nextTimer = null, rosterTimer = null;   // host
-let V = null, myHand = [];                                           // client
+// ---------- session (survives refresh in the same tab) ----------
+const SKEY = 'arcade-scum-session';
+function saveSession(o) { try { sessionStorage.setItem(SKEY, JSON.stringify(o)); } catch (e) {} }
+function loadSession() { try { return JSON.parse(sessionStorage.getItem(SKEY)); } catch (e) { return null; } }
+function clearSession() { try { sessionStorage.removeItem(SKEY); } catch (e) {} }
+const newKey = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now());
+
+// ---------- state ----------
+let lobby = null, isHost = false, myName = '', myKey = '', pin = '';
+// host
+let G = null, roster = new Map(), seatKey = [], seatPeer = [], nextTimer = null, botTimer = null;
+// player
+let hostId = null, hostAway = false, seat = -1, V = null, myHand = [], lobbyNames = [];
 let sel = new Set(), err = '';
 
 function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id));
 }
+function playerName() { return ($('name').value.trim() || 'Player').slice(0, 20); }
 
-function playerName() {
-  return ($('name').value.trim() || 'Player').slice(0, 20);
+function openRoom() {
+  lobby = libs.openLobby({ game: 'scum', pin, info: { name: myName, key: myKey, host: isHost } });
+  lobby.on('message', onMessage);
+  lobby.on('join', onPeerInfo);
+  lobby.on('leave', onPeerLeave);
 }
 
-// ---------- lobby ----------
+// ---------- entering and leaving ----------
 function hostGame() {
   if (!libs) { showErr('Still loading networking, try again in a moment.'); return; }
-  myName = playerName(); isHost = true; seat = 0;
-  const pin = libs.makePin();
-  lobby = libs.openLobby({ game: 'scum', pin, isHost: true, name: myName });
-  lobby.onMessage(onMessage);
-  $('pinShow').textContent = pin;
-  show('lobby');
-  renderRoster();
-  rosterTimer = setInterval(renderRoster, 1000);
+  myName = playerName(); myKey = newKey(); pin = libs.makePin(); isHost = true; G = null;
+  openRoom();
+  saveHost();
+  render();
 }
 
 function joinGame() {
-  const pin = $('pinIn').value.trim();
-  if (!/^\d{4}$/.test(pin)) { $('pinIn').value = ''; $('pinIn').placeholder = 'Enter the 4-digit PIN'; return; }
+  const p = $('pinIn').value.trim();
+  if (!/^\d{4}$/.test(p)) { $('pinIn').value = ''; $('pinIn').placeholder = 'Enter the 4-digit PIN'; return; }
   if (!libs) { showErr('Still loading networking, try again in a moment.'); return; }
-  myName = playerName(); isHost = false;
-  lobby = libs.openLobby({ game: 'scum', pin, isHost: false, name: myName });
-  lobby.onMessage(onMessage);
-  show('waiting');
-  renderRoster();
-  rosterTimer = setInterval(renderRoster, 1000);
+  myName = playerName(); myKey = newKey(); pin = p; isHost = false;
+  saveSession({ role: 'player', pin, name: myName, key: myKey });
+  openRoom();
+  render();
 }
 
-function renderRoster() {
-  if (!lobby) return;
-  const others = [...lobby.peers.values()];
+// After a refresh: rejoin the same room with the same identity.
+function resume() {
+  const s = loadSession();
+  if (!s || !s.pin || !s.key) return;
+  pin = s.pin; myName = s.name || 'Player'; myKey = s.key; isHost = s.role === 'host';
   if (isHost) {
-    const names = [myName + ' (host)', ...others];
-    $('roster').innerHTML = '<b>Players (' + names.length + '/4):</b> ' + names.map(esc).join(', ');
-  } else {
-    $('roster2').innerHTML = others.length
-      ? '<b>Connected to:</b> ' + others.map(esc).join(', ') + '. Waiting for the host to start…'
-      : 'Searching for the host… this can take up to 30 seconds. Check the PIN if it never connects.';
+    G = s.G || null;
+    seatKey = Array.isArray(s.seatKey) ? s.seatKey : [];
+    seatPeer = seatKey.map(() => null); // players reconnect with new peer ids
+  }
+  openRoom();
+  if (isHost && G) update(); else render();
+}
+
+function saveHost() { saveSession({ role: 'host', pin, name: myName, key: myKey, G, seatKey }); }
+
+function cancelGame() {
+  if (!confirm('Cancel the game for everyone?')) return;
+  lobby.broadcast({ t: 'cancel' });
+  setTimeout(() => reset('You cancelled the game.'), 300); // give the message time to go out
+}
+
+function exitGame() {
+  if (!confirm('Leave the game?')) return;
+  if (hostId) lobby.send({ t: 'leave', key: myKey }, hostId);
+  setTimeout(() => reset('You left the game.'), 300);
+}
+
+function leaveOrCancel() { isHost ? cancelGame() : exitGame(); }
+
+function reset(message) {
+  clearSession();
+  clearTimeout(nextTimer); clearTimeout(botTimer); nextTimer = null; botTimer = null;
+  try { if (lobby) lobby.leave(); } catch (e) {}
+  lobby = null; G = null; V = null; hostId = null; hostAway = false; seat = -1; myHand = [];
+  roster = new Map(); seatKey = []; seatPeer = []; lobbyNames = []; sel = new Set(); err = '';
+  show('join');
+  showErr(message);
+}
+
+// ---------- peer events ----------
+function onPeerInfo(id, p) {
+  // Players: when the host appears (also after the host refreshes), ask for our seat and the state.
+  if (!isHost && p.host && !hostId) {
+    hostId = id; hostAway = false;
+    lobby.send({ t: 'sync', key: myKey, name: myName }, id);
+    render();
   }
 }
 
-function startGame() {
-  clearInterval(rosterTimer);
-  const peerIds = [...lobby.peers.keys()].slice(0, 3);
-  const names = [myName, ...peerIds.map(id => lobby.peers.get(id))];
-  const bots = names.map(() => false);
-  seatPeer = [null, ...peerIds];
-  while (names.length < 4) {
-    names.push(BOT_NAMES[names.length - 1] + ' (bot)');
-    bots.push(true);
-    seatPeer.push(null);
+function onPeerLeave(id) {
+  if (isHost) {
+    if (!G) {
+      for (const [k, r] of roster) if (r.peerId === id) roster.delete(k);
+      broadcastLobby(); render();
+    } else {
+      const i = seatPeer.indexOf(id);
+      if (i >= 0) { seatPeer[i] = null; update(); } // seat is kept; they can come back
+    }
+  } else if (id === hostId) {
+    hostId = null; hostAway = true; render();
   }
-  G = createGame(names, bots);
-  seatPeer.forEach((id, i) => { if (id) lobby.send({ t: 'you', seat: i }, id); });
+}
+
+// ---------- messages ----------
+function onMessage(m, from) {
+  if (!m || typeof m !== 'object') return;
+  if (isHost) { if (!tooFast(from)) hostMessage(m, from); return; } // only players are rate-limited
+  if (from !== hostId) return; // players only listen to the host
+  switch (m.t) {
+    case 'lobby': lobbyNames = Array.isArray(m.names) ? m.names.slice(0, 4).map(x => String(x).slice(0, 30)) : []; break;
+    case 'you': { const s = int(m.seat, 0, 3); if (s !== null) seat = s; break; }
+    case 'state': { const v = cleanView(m.v); if (v) { V = v; err = ''; } break; }
+    case 'hand': myHand = cleanCards(m.hand, 52); break;
+    case 'error': err = String(m.err).slice(0, 100); break;
+    case 'full': reset('That game is full.'); return;
+    case 'busy': reset('A round is in progress. Try joining again when it ends.'); return;
+    case 'cancel': reset('The host cancelled the game.'); return;
+  }
+  render();
+}
+
+function hostMessage(m, from) {
+  const key = String(m.key ?? '').slice(0, 40);
+  if (m.t === 'sync' && key) {
+    const name = String(m.name ?? '').slice(0, 20) || 'Player';
+    if (!G) {
+      if (!roster.has(key) && roster.size >= 3) { lobby.send({ t: 'full' }, from); return; }
+      roster.set(key, { peerId: from, name });
+      broadcastLobby(); render();
+    } else {
+      let i = seatKey.indexOf(key);
+      if (i < 0 && G.roundOver) i = takeBotSeat(key, name); // newcomers can join between rounds
+      if (i <= 0) { lobby.send({ t: G.roundOver ? 'full' : 'busy' }, from); return; }
+      seatPeer[i] = from;
+      lobby.send({ t: 'you', seat: i }, from);
+      update();
+    }
+  } else if (m.t === 'leave') {
+    if (!G) {
+      if (roster.get(key)?.peerId === from) { roster.delete(key); broadcastLobby(); render(); }
+    } else {
+      const i = seatPeer.indexOf(from);
+      if (i > 0) toBot(i);
+    }
+  } else if (m.t === 'move' && G && (m.kind === 'play' || m.kind === 'pass')) {
+    const i = seatPeer.indexOf(from);
+    if (i <= 0) return;
+    const r = act(G, i, m.kind, cleanCards(m.cards, 4));
+    if (!r.ok) lobby.send({ t: 'error', err: r.err }, from);
+    else update();
+  }
+}
+
+function broadcastLobby() {
+  const names = [myName + ' (host)', ...[...roster.values()].map(r => r.name)];
+  lobby.broadcast({ t: 'lobby', names });
+}
+
+// Between rounds a newcomer replaces a bot; their score starts at 0.
+function takeBotSeat(key, name) {
+  const i = G.players.findIndex((p, k) => k > 0 && p.bot);
+  if (i < 0) return -1;
+  G.players[i].bot = false;
+  G.players[i].name = name;
+  G.scores[i] = 0;
+  seatKey[i] = key;
+  G.log.unshift(name + ' joined and takes over a seat.');
+  return i;
+}
+
+// The host starts each new round when everyone is ready.
+function nextRound() {
+  if (!G || !G.roundOver) return;
   newRound(G);
   update();
 }
 
-// ---------- host ----------
-function update() {
-  renderAll();
-  lobby.broadcast({ t: 'state', v: view(G) });
-  seatPeer.forEach((id, i) => { if (id) lobby.send({ t: 'hand', hand: G.players[i].hand }, id); });
-  if (G.roundOver) {
-    if (!nextTimer) nextTimer = setTimeout(() => { nextTimer = null; newRound(G); update(); }, 3000);
-    return;
+// A player who leaves mid-game is replaced by a bot so the game can continue.
+function toBot(i) {
+  const p = G.players[i];
+  p.bot = true;
+  p.name = BOT_NAMES[(i - 1) % 3] + ' (bot)';
+  G.log.unshift('A player left; a bot took their seat.');
+  seatKey[i] = null; seatPeer[i] = null;
+  update();
+}
+
+// ---------- host game flow ----------
+function startGame() {
+  const entries = [...roster.entries()].slice(0, 3);
+  const names = [myName, ...entries.map(e => e[1].name)];
+  const bots = names.map(() => false);
+  seatKey = [myKey, ...entries.map(e => e[0])];
+  seatPeer = [null, ...entries.map(e => e[1].peerId)];
+  while (names.length < 4) {
+    names.push(BOT_NAMES[names.length - 1] + ' (bot)');
+    bots.push(true); seatKey.push(null); seatPeer.push(null);
   }
+  G = createGame(names, bots);
+  newRound(G);
+  seatPeer.forEach((id, i) => { if (id) lobby.send({ t: 'you', seat: i }, id); });
+  update();
+}
+
+function hostView() {
+  const v = view(G);
+  v.players.forEach((p, i) => { p.away = i > 0 && !p.bot && !seatPeer[i]; });
+  return v;
+}
+
+function update() {
+  err = '';
+  saveHost();
+  render();
+  lobby.broadcast({ t: 'state', v: hostView() });
+  seatPeer.forEach((id, i) => { if (id) lobby.send({ t: 'hand', hand: G.players[i].hand }, id); });
+  if (G.roundOver) return; // host starts the next round with the button
   if (G.players[G.turn].bot) {
-    setTimeout(() => {
-      if (G.roundOver || !G.players[G.turn].bot) return;
+    clearTimeout(botTimer);
+    botTimer = setTimeout(() => {
+      if (!G || G.roundOver || !G.players[G.turn].bot) return;
       const m = botChoice(G, G.turn);
       act(G, G.turn, m.kind, m.cards);
       update();
@@ -112,41 +261,20 @@ function update() {
   }
 }
 
-function hostMove(from, kind, cards) {
-  const i = seatPeer.indexOf(from);
-  if (i < 0) return;
-  const r = act(G, i, kind, cards);
-  if (!r.ok) lobby.send({ t: 'error', err: r.err }, from);
-  else update();
-}
-
-// ---------- messages ----------
-function onMessage(m, from) {
-  if (!m || typeof m !== 'object' || tooFast(from)) return;
-  if (isHost) {
-    if (m.t === 'move' && G && (m.kind === 'play' || m.kind === 'pass'))
-      hostMove(from, m.kind, cleanCards(m.cards, 4));
-    return;
-  }
-  if (hostId && from !== hostId) return; // only listen to the host once known
-  if (m.t === 'you') { const s = int(m.seat, 0, 3); if (s !== null) { seat = s; hostId = from; } }
-  else if (m.t === 'state') { const v = cleanView(m.v); if (v) { hostId = hostId || from; V = v; } }
-  else if (m.t === 'hand') { myHand = cleanCards(m.hand, 52); }
-  else if (m.t === 'error') { err = String(m.err).slice(0, 100); }
-  renderAll();
-}
-
 function cleanView(v) {
   if (!v || !Array.isArray(v.players) || v.players.length !== 4) return null;
   return {
     turn: int(v.turn, 0, 3) ?? 0,
     roundOver: !!v.roundOver,
+    scores: Array.isArray(v.scores) ? v.scores.slice(0, 4).map(x => int(x, 0, 99999) ?? 0) : [0, 0, 0, 0],
+    ranking: Array.isArray(v.ranking) && v.ranking.length === 4 ? v.ranking.map(x => int(x, 0, 3) ?? 0) : null,
     topCount: int(v.topCount, 0, 4) ?? 0,
     pile: cleanCards(v.pile, 4),
     log: Array.isArray(v.log) ? v.log.slice(0, 8).map(x => String(x).slice(0, 120)) : [],
     players: v.players.map(p => ({
       name: String(p && p.name).slice(0, 30),
       bot: !!(p && p.bot),
+      away: !!(p && p.away),
       count: int(p && p.count, 0, 52) ?? 0,
       place: int(p && p.place, -1, 3) ?? -1,
     })),
@@ -157,20 +285,16 @@ function cleanView(v) {
 function pick(k) {
   err = '';
   sel.has(k) ? sel.delete(k) : sel.add(k);
-  renderAll();
-}
-
-function selectedCards(hand) {
-  return hand.filter(c => sel.has(key(c)));
+  render();
 }
 
 function sendMove(kind) {
   const hand = isHost ? G.players[0].hand : myHand;
-  const cards = kind === 'play' ? selectedCards(hand).map(c => ({ r: c.r, s: c.s })) : [];
+  const cards = kind === 'play' ? hand.filter(c => sel.has(cardKey(c))).map(c => ({ r: c.r, s: c.s })) : [];
   sel = new Set();
   if (isHost) {
     const r = act(G, 0, kind, cards);
-    if (!r.ok) { err = r.err; renderAll(); } else update();
+    if (!r.ok) { err = r.err; render(); } else update();
   } else if (hostId) {
     lobby.send({ t: 'move', kind, cards }, hostId);
   }
@@ -180,42 +304,80 @@ const safe = fn => (...a) => { try { showErr(''); return fn(...a); } catch (e) {
 window.hostGame = safe(hostGame);
 window.joinGame = safe(joinGame);
 window.startGame = safe(startGame);
+window.nextRound = safe(nextRound);
+window.cancelGame = safe(cancelGame);
+window.exitGame = safe(exitGame);
+window.leaveOrCancel = safe(leaveOrCancel);
 window.playSel = safe(() => sendMove('play'));
 window.passTurn = safe(() => sendMove('pass'));
+window.pick = pick;
 window.addEventListener('error', e => showErr('Error: ' + e.message));
 window.addEventListener('unhandledrejection', e => showErr('Error: ' + (e.reason && e.reason.message || e.reason)));
-window.pick = pick;
 
 // ---------- rendering ----------
+function render() {
+  if (isHost) {
+    if (G) renderGame(hostView(), G.players[0].hand, 0); else renderLobby();
+  } else if (lobby) {
+    if (V && seat >= 0) renderGame(V, myHand, seat); else renderWaiting();
+  }
+}
+
+function renderLobby() {
+  show('lobby');
+  $('pinShow').textContent = pin;
+  const names = [myName + ' (host)', ...[...roster.values()].map(r => r.name)];
+  $('roster').innerHTML = '<b>Players (' + names.length + '/4):</b> ' + names.map(esc).join(', ');
+}
+
+function renderWaiting() {
+  show('waiting');
+  $('pinWait').textContent = pin;
+  $('roster2').innerHTML = hostId
+    ? (lobbyNames.length ? '<b>In the lobby:</b> ' + lobbyNames.map(esc).join(', ') + '.<br>Waiting for the host to start…' : 'Connected. Waiting for the host…')
+    : hostAway ? 'The host disconnected. Waiting for them to come back…'
+    : 'Searching for the host… this can take up to 30 seconds.';
+}
+
 function cardHTML(c, clickable) {
   const red = c.s === 1 || c.s === 2;
-  const k = key(c);
+  const k = cardKey(c);
   const cls = 'card' + (red ? ' red' : '') + (sel.has(k) ? ' sel' : '');
   const click = clickable ? ` onclick="pick('${k}')"` : '';
   return `<span class="${cls}"${click}>${RANKS[c.r]}<br>${SUITS[c.s]}</span>`;
 }
 
-function renderAll() {
-  if (isHost && G) renderGame(view(G), G.players[0].hand, 0);
-  else if (!isHost && V) renderGame(V, myHand, seat);
-}
-
 function renderGame(v, hand, me) {
-  if (!isHost) clearInterval(rosterTimer);
   show('game');
-  const myTurn = v.turn === me && !v.roundOver;
+  const myTurn = v.turn === me && !v.roundOver && (isHost || !hostAway);
   $('seats').innerHTML = v.players.map((p, i) =>
     '<div class="muted">' + (!v.roundOver && i === v.turn ? '▶ ' : '') +
-    (i === me ? 'You' : esc(p.name)) + (p.bot ? ' 🤖' : '') + ': ' +
+    (i === me ? 'You' : esc(p.name)) + (p.bot ? ' 🤖' : '') + (p.away ? ' (disconnected)' : '') + ': ' +
     (p.place >= 0 ? 'out #' + (p.place + 1) : p.count + ' cards') + '</div>'
   ).join('');
   $('pile').innerHTML = v.pile.map(c => cardHTML(c, false)).join('') || '<span class="muted">empty</span>';
   $('hand').innerHTML = hand.map(c => cardHTML(c, myTurn)).join('');
-  $('msg').textContent = err || (v.roundOver ? 'Round over. Next round starts shortly…'
+  $('msg').textContent = !isHost && hostAway ? 'The host disconnected. Waiting for them to come back…'
+    : err || (v.roundOver ? (isHost ? 'Round over. Start the next round when everyone is ready.' : 'Round over. Waiting for the host to start the next round…')
     : myTurn ? 'Your turn: select cards and press Play, or Pass.'
     : v.players[v.turn].name + ' is playing…');
   $('play').disabled = !myTurn;
   $('pass').disabled = !myTurn || v.topCount === 0;
   $('log').innerHTML = v.log.map(esc).join('<br>');
-  if (isHost && $('start')) $('start').disabled = true;
+  $('leaveBtn').textContent = isHost ? 'Cancel game' : 'Leave game';
+  $('nextBtn').style.display = isHost && v.roundOver ? '' : 'none';
+  renderScores(v, me);
+}
+
+function renderScores(v, me) {
+  const box = $('scores');
+  if (!v.roundOver) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  const title = i => v.ranking ? TITLES[v.ranking.indexOf(i)] || '' : '';
+  const rows = v.players.map((p, i) => ({ i, name: i === me ? 'You' : p.name, score: v.scores[i] || 0 }))
+    .sort((a, b) => b.score - a.score);
+  box.innerHTML = '<b>Scoreboard</b> <span class="muted">(3/2/1/0 points per round)</span><table>' +
+    '<tr><th>Player</th><th>This round</th><th>Points</th></tr>' +
+    rows.map(r => '<tr><td>' + esc(r.name) + '</td><td>' + esc(title(r.i)) + '</td><td>' + r.score + '</td></tr>').join('') +
+    '</table>';
 }

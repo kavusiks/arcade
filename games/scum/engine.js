@@ -2,6 +2,7 @@
 export const RANKS = ['3','4','5','6','7','8','9','10','J','Q','K','A','2'];
 export const SUITS = ['♣','♦','♥','♠'];
 export const TITLES = ['President','Vice-President','Vice-Scum','Scum'];
+export const POINTS = [3, 2, 1, 0]; // points per finishing place
 
 const sortHand = h => h.sort((a, b) => a.r - b.r || a.s - b.s);
 const same = (a, b) => a.r === b.r && a.s === b.s;
@@ -14,6 +15,7 @@ function log(G, msg) {
 export function createGame(names, bots) {
   return {
     players: names.map((name, i) => ({ name, bot: bots[i], hand: [], done: false })),
+    scores: names.map(() => 0),
     round: 0, ranking: null, log: [],
     pile: [], topRank: -1, topCount: 0, lastPlayer: -1, passes: 0,
     order: [], turn: 0, roundOver: false,
@@ -60,14 +62,14 @@ export function legalPlays(G, hand) {
   hand.forEach(c => (by[c.r] = by[c.r] || []).push(c));
   for (const r in by) {
     for (let k = 1; k <= by[r].length; k++)
-      if (G.topCount === 0 || (k === G.topCount && +r > G.topRank)) out.push(by[r].slice(0, k));
+      if (G.topCount === 0 || (k === G.topCount && +r >= G.topRank)) out.push(by[r].slice(0, k));
   }
   return out;
 }
 
 function isLegal(G, cs) {
   if (!cs.length || cs.some(c => c.r !== cs[0].r)) return false;
-  return G.topCount === 0 || (cs.length === G.topCount && cs[0].r > G.topRank);
+  return G.topCount === 0 || (cs.length === G.topCount && cs[0].r >= G.topRank); // same rank is allowed
 }
 
 // Apply a move for seat i. kind: 'play' | 'pass'. Returns { ok, err }.
@@ -103,6 +105,8 @@ function afterMove(G, i) {
     G.players[last].done = true;
     G.ranking = G.order.slice();
     G.roundOver = true;
+    if (!G.scores) G.scores = G.players.map(() => 0);
+    G.ranking.forEach((seat, place) => { G.scores[seat] += POINTS[place]; });
     log(G, 'Round over. President: ' + G.players[G.order[0]].name + '. Scum: ' + G.players[last].name + '.');
     return;
   }
@@ -127,6 +131,7 @@ export function botChoice(G, i) {
 export function view(G) {
   return {
     round: G.round, turn: G.turn, roundOver: G.roundOver, log: G.log,
+    scores: G.scores || G.players.map(() => 0), ranking: G.ranking || null,
     pile: G.pile, topCount: G.topCount,
     players: G.players.map((p, i) => ({
       name: p.name, bot: p.bot, count: p.hand.length,
