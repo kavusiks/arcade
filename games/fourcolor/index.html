@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>4Color · Arcade</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0 auto;padding:12px;max-width:560px;background:#1d2340;color:#fff}
+a{color:#ffd54a}
+.screen{display:none}.screen.on{display:block}
+input{font-size:18px;padding:10px;border-radius:8px;border:0;width:100%;box-sizing:border-box;margin:4px 0}
+button{padding:12px 16px;margin:6px 2px;border-radius:8px;border:0;font-size:16px;background:#ffd54a;color:#111}
+button.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5)}
+button:disabled{opacity:.4}
+.row{margin:8px 0}.muted{opacity:.75;font-size:14px}.turn{opacity:1;font-weight:600}
+.pin{font-size:42px;letter-spacing:8px;font-weight:700;text-align:center;margin:8px 0}
+.fc{display:inline-flex;align-items:center;justify-content:center;width:54px;height:80px;margin:3px;border-radius:8px;font-weight:800;font-size:15px;color:#fff;border:3px solid #fff;box-sizing:border-box;text-align:center;user-select:none;text-shadow:0 1px 2px rgba(0,0,0,.5);vertical-align:top}
+.fc-r{background:#d32f2f}.fc-y{background:#f9a825}.fc-g{background:#2e7d32}.fc-b{background:#1565c0}
+.fc-w{background:conic-gradient(#d32f2f 0 25%,#f9a825 0 50%,#2e7d32 0 75%,#1565c0 0)}
+.fc.playable{cursor:pointer;transform:translateY(-6px);box-shadow:0 0 0 3px #ffd54a}
+.fc:not(.playable):not(.back){opacity:.8}
+#top .fc{opacity:1;width:72px;height:104px;font-size:20px}
+.fc.drawn{outline:3px dashed #fff;outline-offset:2px}
+.fc.back{background:repeating-linear-gradient(45deg,#222 0 6px,#444 6px 12px)}
+.dot{display:inline-block;width:14px;height:14px;border-radius:50%;vertical-align:middle;border:2px solid #fff}
+.table{display:flex;gap:16px;align-items:center}
+#log{font-size:13px;opacity:.85;min-height:3em;background:#141a33;padding:6px;border-radius:6px}
+#err{color:#ffb4a8;font-size:14px}
+#scores{background:#141a33;padding:8px;border-radius:8px}
+#scores table{width:100%;border-collapse:collapse;margin-top:6px}
+#scores td,#scores th{text-align:left;padding:4px;border-bottom:1px solid rgba(255,255,255,.15)}
+#wildPick{background:#141a33;padding:8px;border-radius:8px}
+#wildPick button{color:#fff;font-weight:700}
+.qr{background:#fff;padding:10px;width:200px;min-height:200px;margin:8px auto;border-radius:8px;color:#111}
+.link{word-break:break-all;font-size:13px;background:#141a33;padding:6px;border-radius:6px;user-select:all}
+</style>
+</head>
+<body>
+<h2>4Color</h2>
+<div id="err"></div>
+
+<div id="join" class="screen on">
+  <label>Your name</label>
+  <input id="name" maxlength="20" placeholder="Name (optional)">
+  <div class="row"><button onclick="hostGame()">Host a game</button></div>
+  <label>Or join a game</label>
+  <input id="pinIn" placeholder="Paste the join link or code">
+  <div id="joinHint" class="muted"></div>
+  <div class="row"><button onclick="joinGame()">Join</button></div>
+  <p class="muted">Easiest: scan the QR code on the host's screen. 2–6 players.</p>
+  <p class="muted">Match the top card by colour or value. Wild picks a colour; +4 only when you have none of the current colour. Say "Last card!" when you're down to one, or others can catch you for +2.</p>
+</div>
+
+<div id="lobby" class="screen">
+  <div class="muted">Players scan this QR code to join:</div>
+  <div id="qr" class="qr"></div>
+  <div class="muted">Or send them this link:</div>
+  <div id="joinLink" class="link"></div>
+  <div class="row"><button class="ghost" id="copyBtn" onclick="copyLink()">Copy link</button></div>
+  <div class="muted">Game PIN (shown on players' screens to confirm they're in the right game):</div>
+  <div class="pin" id="pinShow"></div>
+  <div id="roster" class="row"></div>
+  <label class="row muted"><input type="checkbox" id="fillBots" checked style="width:auto"> Fill up to 4 players with bots</label>
+  <div class="row">
+    <button onclick="startGame()">Start game</button>
+    <button class="ghost" onclick="cancelGame()">Cancel game</button>
+  </div>
+</div>
+
+<div id="waiting" class="screen">
+  <div class="muted">Game PIN:</div>
+  <div class="pin" id="pinWait"></div>
+  <div id="roster2" class="row"></div>
+  <div class="row"><button class="ghost" onclick="exitGame()">Leave lobby</button></div>
+</div>
+
+<div id="game" class="screen">
+  <div id="seats"></div>
+  <div class="row table">
+    <div id="top"></div>
+    <div><div id="colorNow"></div></div>
+  </div>
+  <div id="msg" class="row"></div>
+  <div id="scores" class="row" style="display:none"></div>
+  <div class="row"><button id="nextBtn" onclick="nextRound()" style="display:none">Start next round</button></div>
+  <div id="invite" style="display:none">
+    <div class="muted">A bot seat is free: new players can scan this to join before the next round.</div>
+    <div id="qr2" class="qr"></div>
+    <div id="joinLink2" class="link"></div>
+    <div class="row"><button class="ghost" id="copyBtn2" onclick="copyLink()">Copy link</button></div>
+  </div>
+  <div id="wildPick" class="row" style="display:none">
+    <div>Choose a colour:</div>
+    <button class="fc-r" onclick="chooseColor('r')">Red</button>
+    <button class="fc-y" onclick="chooseColor('y')">Yellow</button>
+    <button class="fc-g" onclick="chooseColor('g')">Green</button>
+    <button class="fc-b" onclick="chooseColor('b')">Blue</button>
+    <button class="ghost" onclick="chooseColor('')">Cancel</button>
+  </div>
+  <div class="row">
+    <button id="callBtn" onclick="callLast()" style="display:none">Last card!</button>
+    <button id="catchBtn" onclick="catchPlayer()" style="display:none">Catch!</button>
+  </div>
+  <div class="row"><b>Your hand</b> <button class="ghost" id="handBtn" onclick="toggleHand()" style="padding:6px 12px;font-size:14px">Show cards</button></div>
+  <div id="hand"></div>
+  <div class="row">
+    <button id="drawBtn" onclick="drawCard()">Draw a card</button>
+    <button id="passBtn" onclick="passTurn()" style="display:none">Pass</button>
+  </div>
+  <div id="log"></div>
+  <div class="row"><button class="ghost" id="leaveBtn" onclick="leaveOrCancel()">Leave game</button></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+<script type="module" src="main.js?v=1795027734"></script>
+</body>
+</html>
