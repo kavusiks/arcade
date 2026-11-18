@@ -1,13 +1,14 @@
 // Undercover UI and networking. The host runs the engine; players send actions and render what the host sends.
 // Sessions are kept in sessionStorage so a refresh rejoins the same game in the same tab.
-import { createGame, newRound, act, tick, leave, addPlayer, view, secretFor, activeSeats, MIN_PLAYERS, MAX_PLAYERS, DURATIONS } from './engine.js?v=1795029127';
-import { LOCATIONS } from './locations.js?v=1795029127';
+import { createGame, newRound, act, tick, leave, addPlayer, view, secretFor, activeSeats, MIN_PLAYERS, MAX_PLAYERS, DURATIONS } from './engine.js?v=1795029977';
+import { pictureSVG } from './pictures.js?v=1795029977';
+import { LOCATIONS } from './locations.js?v=1795029977';
 
 const $ = id => document.getElementById(id);
 let libs = null;
 function showErr(t) { $('err').textContent = t || ''; }
 // Load networking separately so the buttons still work (and show errors) if it fails.
-import('../../lib/lobby.js?v=1795029127')
+import('../../lib/lobby.js?v=1795029977')
   .then(m => { libs = m; if (!joinFromHash()) resume(); })
   .catch(e => showErr('Networking failed to load: ' + e.message + '. Check your connection and reload.'));
 
@@ -445,7 +446,8 @@ function renderGame() {
   else if (!cardVisible) card = '<span class="muted">Hidden</span>';
   else if (s.spy) card = '<div class="big">You are the SPY</div><div class="muted">Work out the location from the questions, without being found out.</div>';
   else card = '<div class="muted">Location</div><div class="big">' + esc(LOCATIONS[s.location].name) + '</div><div class="muted">Your role: ' + esc(s.role) + '</div>';
-  $('card').innerHTML = card;
+  if (s && cardVisible && !s.spy && !s.joinedLate) card = pictureSVG(LOCATIONS[s.location].name, 'pic card-pic') + card;
+  setHTML('card', card);
   $('cardBtn').textContent = cardVisible ? 'Hide my card' : 'Show my card';
   $('cardBtn').style.display = s && !s.joinedLate ? '' : 'none';
 
@@ -488,9 +490,10 @@ function renderGame() {
   $('resultBox').style.display = v.phase === 'over' && r ? '' : 'none';
   if (v.phase === 'over' && r) {
     const head = r.winner === 'spy' ? 'The spy wins!' : r.winner === 'agents' ? 'The agents win!' : 'Round cancelled';
-    $('resultBox').innerHTML = '<div class="big">' + head + '</div><div>' + esc(r.reason) + '</div>' +
+    setHTML('resultBox', (LOCATIONS[r.location] ? pictureSVG(LOCATIONS[r.location].name, 'pic card-pic') : '') +
+      '<div class="big">' + head + '</div><div>' + esc(r.reason) + '</div>' +
       '<div class="muted">The location was <b>' + esc(LOCATIONS[r.location] ? LOCATIONS[r.location].name : '?') + '</b>. The spy was <b>' +
-      esc(r.spy >= 0 ? name(r.spy) : '?') + '</b>.</div>' + scoreTable(v, me);
+      esc(r.spy >= 0 ? name(r.spy) : '?') + '</b>.</div>' + scoreTable(v, me));
   }
   $('nextBox').style.display = isHost && v.phase === 'over' ? '' : 'none';
   if (isHost && v.phase === 'over') {
@@ -502,11 +505,33 @@ function renderGame() {
   }
 
   // Locations (tap to cross out; only on this phone)
-  $('locs').innerHTML = LOCATIONS.map((l, i) =>
-    '<span class="loc' + (crossed.has(i) ? ' out' : '') + '" onclick="crossOut(' + i + ')">' + esc(l.name) + '</span>').join('');
+  if (!$('locs').dataset.built) {
+    $('locs').innerHTML = LOCATIONS.map((l, i) =>
+      '<div class="loc" id="loc' + i + '" onclick="crossOut(' + i + ')">' + pictureSVG(l.name) + '<span>' + esc(l.name) + '</span></div>').join('');
+    $('locs').dataset.built = '1';
+    calmMotion($('locs'));
+  }
+  LOCATIONS.forEach((l, i) => { const e = $('loc' + i); if (e) e.classList.toggle('out', crossed.has(i)); });
 
   $('log').innerHTML = v.log.map(esc).join('<br>');
   $('leaveBtn').textContent = isHost ? 'Cancel game' : 'Leave game';
+}
+
+// Replace an element's HTML only when it changed, so running animations are not restarted.
+function setHTML(id, html) {
+  const e = $(id);
+  if (e.dataset.html === html) return;
+  e.innerHTML = html;
+  e.dataset.html = html;
+  calmMotion(e);
+}
+
+// Phones set to "reduce motion" get still pictures.
+function calmMotion(root) {
+  try {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+      root.querySelectorAll('svg').forEach(s => s.pauseAnimations && s.pauseAnimations());
+  } catch (e) {}
 }
 
 function scoreTable(v, me) {

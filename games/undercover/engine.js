@@ -9,7 +9,7 @@
 //   over  – the round result is shown; the host starts the next round.
 // Scoring: agents win → every agent +1, and the accuser of the spy +1 extra.
 //          spy wins → +2 (time ran out or an innocent was convicted), +4 for guessing the location.
-import { LOCATIONS } from './locations.js?v=1795029127';
+import { LOCATIONS } from './locations.js?v=1795029977';
 
 export const MIN_PLAYERS = 3, MAX_PLAYERS = 8;
 export const DURATIONS = [5, 8, 10]; // minutes
