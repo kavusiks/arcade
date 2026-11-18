@@ -32,14 +32,20 @@ button:disabled{opacity:.4}
   <label>Your name</label>
   <input id="name" maxlength="20" placeholder="Name (optional)">
   <div class="row"><button onclick="hostGame()">Host a game</button></div>
-  <label>Or join with a PIN</label>
-  <input id="pinIn" inputmode="numeric" maxlength="4" placeholder="4-digit PIN">
+  <label>Or join a game</label>
+  <input id="pinIn" placeholder="Paste the join link or code">
+  <div id="joinHint" class="muted"></div>
   <div class="row"><button onclick="joinGame()">Join</button></div>
-  <p class="muted">Up to 4 players. Empty seats are filled with bots when the host starts.</p>
+  <p class="muted">Easiest: scan the QR code on the host's screen. Up to 4 players. Empty seats are filled with bots when the host starts.</p>
 </div>
 
 <div id="lobby" class="screen">
-  <div class="muted">Share this PIN:</div>
+  <div class="muted">Players scan this QR code to join:</div>
+  <div id="qr" style="background:#fff;padding:10px;width:200px;min-height:200px;margin:8px auto;border-radius:8px;color:#111"></div>
+  <div class="muted">Or send them this link:</div>
+  <div id="joinLink" style="word-break:break-all;font-size:13px;background:#0c3a20;padding:6px;border-radius:6px;user-select:all"></div>
+  <div class="row"><button class="ghost" id="copyBtn" onclick="copyLink()">Copy link</button></div>
+  <div class="muted">Game PIN (shown on players' screens to confirm they're in the right game):</div>
   <div class="pin" id="pinShow"></div>
   <div id="roster" class="row"></div>
   <div class="row">
@@ -61,6 +67,12 @@ button:disabled{opacity:.4}
   <div id="msg" class="row"></div>
   <div id="scores" class="row" style="display:none"></div>
   <div class="row"><button id="nextBtn" onclick="nextRound()" style="display:none">Start next round</button></div>
+  <div id="invite" style="display:none">
+    <div class="muted">A bot seat is free: new players can scan this to join before the next round.</div>
+    <div id="qr2" style="background:#fff;padding:10px;width:200px;min-height:200px;margin:8px auto;border-radius:8px;color:#111"></div>
+    <div id="joinLink2" style="word-break:break-all;font-size:13px;background:#0c3a20;padding:6px;border-radius:6px;user-select:all"></div>
+    <div class="row"><button class="ghost" id="copyBtn2" onclick="copyLink()">Copy link</button></div>
+  </div>
   <div class="row"><b>Your hand</b></div>
   <div id="hand"></div>
   <div class="row">
@@ -71,6 +83,7 @@ button:disabled{opacity:.4}
   <div class="row"><button class="ghost" id="leaveBtn" onclick="leaveOrCancel()">Leave game</button></div>
 </div>
 
-<script type="module" src="main.js?v=1794964688"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+<script type="module" src="main.js?v=1794966246"></script>
 </body>
 </html>

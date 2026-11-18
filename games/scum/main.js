@@ -1,13 +1,13 @@
 // Scum UI and networking. The host runs the engine; players send moves and render what the host sends.
 // Sessions are kept in sessionStorage so a refresh rejoins the same game in the same tab.
-import { createGame, newRound, act, botChoice, view, RANKS, SUITS, TITLES } from './engine.js?v=1794964688';
+import { createGame, newRound, act, botChoice, view, RANKS, SUITS, TITLES } from './engine.js?v=1794966246';
 
 const $ = id => document.getElementById(id);
 let libs = null;
 function showErr(t) { $('err').textContent = t || ''; }
 // Load networking separately so the buttons still work (and show errors) if it fails.
-import('../../lib/lobby.js?v=1794964688')
-  .then(m => { libs = m; resume(); })
+import('../../lib/lobby.js?v=1794966246')
+  .then(m => { libs = m; if (!joinFromHash()) resume(); })
   .catch(e => showErr('Networking failed to load: ' + e.message + '. Check your connection and reload.'));
 
 const BOT_NAMES = ['Ada', 'Ben', 'Cy'];
@@ -34,7 +34,7 @@ function clearSession() { try { sessionStorage.removeItem(SKEY); } catch (e) {} 
 const newKey = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now());
 
 // ---------- state ----------
-let lobby = null, isHost = false, myName = '', myKey = '', pin = '';
+let lobby = null, isHost = false, myName = '', myKey = '', pin = '', secret = '';
 // host
 let G = null, roster = new Map(), seatKey = [], seatPeer = [], nextTimer = null, botTimer = null;
 // player
@@ -47,7 +47,7 @@ function show(id) {
 function playerName() { return ($('name').value.trim() || 'Player').slice(0, 20); }
 
 function openRoom() {
-  lobby = libs.openLobby({ game: 'scum', pin, info: { name: myName, key: myKey, host: isHost } });
+  lobby = libs.openLobby({ game: 'scum', pin, secret, info: { name: myName, key: myKey, host: isHost } });
   lobby.on('message', onMessage);
   lobby.on('join', onPeerInfo);
   lobby.on('leave', onPeerLeave);
@@ -56,27 +56,45 @@ function openRoom() {
 // ---------- entering and leaving ----------
 function hostGame() {
   if (!libs) { showErr('Still loading networking, try again in a moment.'); return; }
-  myName = playerName(); myKey = newKey(); pin = libs.makePin(); isHost = true; G = null;
+  myName = playerName(); myKey = newKey(); pin = libs.makePin(); secret = libs.makeSecret(); isHost = true; G = null;
   openRoom();
   saveHost();
   render();
 }
 
-function joinGame() {
-  const p = $('pinIn').value.trim();
-  if (!/^\d{4}$/.test(p)) { $('pinIn').value = ''; $('pinIn').placeholder = 'Enter the 4-digit PIN'; return; }
+// A join code looks like 4821-<22 chars>; it can be typed, pasted alone, or pasted as the full link.
+const CODE_RE = /(\d{4})-([A-Za-z0-9]{22})/;
+const joinLink = () => location.origin + location.pathname + location.search + '#join=' + pin + '-' + secret;
+
+function joinGame(code) {
+  const m = String(code || $('pinIn').value).trim().match(CODE_RE);
+  if (!m) { $('pinIn').value = ''; $('pinIn').placeholder = 'Scan the QR code or paste the join link'; return; }
   if (!libs) { showErr('Still loading networking, try again in a moment.'); return; }
-  myName = playerName(); myKey = newKey(); pin = p; isHost = false;
-  saveSession({ role: 'player', pin, name: myName, key: myKey });
+  myName = playerName(); myKey = newKey(); pin = m[1]; secret = m[2]; isHost = false;
+  saveSession({ role: 'player', pin, secret, name: myName, key: myKey });
   openRoom();
   render();
+}
+
+// Opened from a join link or QR code: fill in the code, then remove the secret from the address bar.
+function joinFromHash() {
+  const m = location.hash.match(/^#join=(\d{4}-[A-Za-z0-9]{22})$/);
+  if (!m) return false;
+  history.replaceState(null, '', location.pathname + location.search);
+  const s = loadSession();
+  if (s && s.pin + '-' + s.secret === m[1]) return false; // same game as this tab's session: just resume
+  if (s && s.role === 'host') return false;                // never kick a host out of their own game
+  $('pinIn').value = m[1];                                  // pre-fill; the player adds a name and presses Join
+  $('joinHint').textContent = 'Game code filled in. Type your name and press Join.';
+  $('name').focus();
+  return true;
 }
 
 // After a refresh: rejoin the same room with the same identity.
 function resume() {
   const s = loadSession();
-  if (!s || !s.pin || !s.key) return;
-  pin = s.pin; myName = s.name || 'Player'; myKey = s.key; isHost = s.role === 'host';
+  if (!s || !s.pin || !s.key || !s.secret) return;
+  pin = s.pin; secret = s.secret; myName = s.name || 'Player'; myKey = s.key; isHost = s.role === 'host';
   if (isHost) {
     G = s.G || null;
     seatKey = Array.isArray(s.seatKey) ? s.seatKey : [];
@@ -86,7 +104,7 @@ function resume() {
   if (isHost && G) update(); else render();
 }
 
-function saveHost() { saveSession({ role: 'host', pin, name: myName, key: myKey, G, seatKey }); }
+function saveHost() { saveSession({ role: 'host', pin, secret, name: myName, key: myKey, G, seatKey }); }
 
 function cancelGame() {
   if (!confirm('Cancel the game for everyone?')) return;
@@ -106,7 +124,7 @@ function reset(message) {
   clearSession();
   clearTimeout(nextTimer); clearTimeout(botTimer); nextTimer = null; botTimer = null;
   try { if (lobby) lobby.leave(); } catch (e) {}
-  lobby = null; G = null; V = null; hostId = null; hostAway = false; seat = -1; myHand = [];
+  lobby = null; secret = ''; G = null; V = null; hostId = null; hostAway = false; seat = -1; myHand = [];
   roster = new Map(); seatKey = []; seatPeer = []; lobbyNames = []; sel = new Set(); err = '';
   show('join');
   showErr(message);
@@ -302,7 +320,8 @@ function sendMove(kind) {
 
 const safe = fn => (...a) => { try { showErr(''); return fn(...a); } catch (e) { showErr('Error: ' + (e && e.message || e)); console.error(e); } };
 window.hostGame = safe(hostGame);
-window.joinGame = safe(joinGame);
+window.joinGame = safe(() => joinGame());
+window.copyLink = safe(copyLink);
 window.startGame = safe(startGame);
 window.nextRound = safe(nextRound);
 window.cancelGame = safe(cancelGame);
@@ -323,11 +342,31 @@ function render() {
   }
 }
 
+// Invite block (QR + link). Shown in the lobby, and on the host's game screen between rounds.
+const qrFor = {};
+function renderInvite(qrId, linkId) {
+  const link = joinLink();
+  $(linkId).textContent = link;
+  if (qrFor[qrId] !== link) { // draw once per game; the link still works if the QR library failed to load
+    $(qrId).innerHTML = '';
+    try { new window.QRCode($(qrId), { text: link, width: 200, height: 200 }); qrFor[qrId] = link; }
+    catch (e) { $(qrId).textContent = 'QR code unavailable. Share the link instead.'; }
+  }
+}
+
 function renderLobby() {
   show('lobby');
   $('pinShow').textContent = pin;
+  renderInvite('qr', 'joinLink');
   const names = [myName + ' (host)', ...[...roster.values()].map(r => r.name)];
   $('roster').innerHTML = '<b>Players (' + names.length + '/4):</b> ' + names.map(esc).join(', ');
+}
+
+async function copyLink() {
+  const btns = [$('copyBtn'), $('copyBtn2')];
+  try { await navigator.clipboard.writeText(joinLink()); btns.forEach(b => { b.textContent = 'Copied!'; }); }
+  catch (e) { btns.forEach(b => { b.textContent = 'Copy failed: select the link and copy it'; }); }
+  setTimeout(() => btns.forEach(b => { b.textContent = 'Copy link'; }), 2000);
 }
 
 function renderWaiting() {
@@ -366,6 +405,9 @@ function renderGame(v, hand, me) {
   $('log').innerHTML = v.log.map(esc).join('<br>');
   $('leaveBtn').textContent = isHost ? 'Cancel game' : 'Leave game';
   $('nextBtn').style.display = isHost && v.roundOver ? '' : 'none';
+  const inviting = isHost && v.roundOver && G.players.some((p, i) => i > 0 && p.bot);
+  $('invite').style.display = inviting ? '' : 'none';
+  if (inviting) renderInvite('qr2', 'joinLink2');
   renderScores(v, me);
 }
 
