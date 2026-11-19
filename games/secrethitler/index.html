@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Secret Hitler · Arcade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../lib/theme.css?v=1795051101">
+<style>
+/* A parliament at night: navy chamber, parchment boards, blue and red policies */
+:root { --table-1: #2a2f4a; --table-2: #12141f; --lib: #4a8fe0; --fas: #e0533f; --parch: #efe6d2; }
+
+.boards { display: grid; gap: 8px; margin: 6px 0 4px; }
+.track { display: flex; align-items: center; gap: 6px; padding: 10px; border-radius: 14px; background: var(--parch); color: #2a2f4a; }
+.track .name { width: 58px; flex: none; font: 800 13px/1.1 var(--display); }
+.track.lib .name { color: #2a5ea8; } .track.fas .name { color: #b23a2a; }
+.slots { display: flex; gap: 5px; flex: 1; }
+.slot { flex: 1; aspect-ratio: 3/4; max-width: 46px; display: grid; place-items: center; border-radius: 6px; border: 2px dashed rgba(42,47,74,.3); font-size: 15px; }
+.slot small { font: 700 10px var(--body); color: rgba(42,47,74,.7); text-align: center; line-height: 1.1; }
+.slot small.danger { color: #b23a2a; font-size: 14px; }
+.slot.veto { border-color: rgba(178,58,42,.5); }
+.slot.on { border: 0; }
+.slot.on.lib { background: var(--lib); } .slot.on.fas { background: var(--fas); }
+.slot .sym, .policy .sym { display: block; }
+.lib .sym { width: 44%; aspect-ratio: 1; border-radius: 50%; border: 3px solid #fff; }
+.fas .sym { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 17px solid #fff; }
+#tracker { display: flex; align-items: center; gap: 6px; font-size: 14px; margin: 4px 2px; flex-wrap: wrap; }
+#tracker .dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(238,241,247,.5); }
+#tracker .dot.on { background: var(--lamp); border-color: var(--lamp); }
+#boardNote { font-size: 14px; color: #ffb4a8; min-height: 0; }
+
+.rolecard { position: relative; margin: 10px 0; padding: 16px 16px 54px; border-radius: 20px; text-align: center; background: var(--parch); color: #2a2f4a; box-shadow: 0 18px 30px -18px rgba(0,0,0,.9); }
+.rolecard.sealed { background: repeating-linear-gradient(-45deg, #e3d8bf 0 10px, #efe6d2 10px 20px); }
+.rolecard .muted { color: #5e5a4c; }
+.rolecard .big { color: #2a2f4a; font-size: 32px; }
+.rolecard.open.liberal { background: radial-gradient(120% 120% at 30% 0%, #e6f0ff, #b9d2f5); }
+.rolecard.open.liberal .big { color: #2a5ea8; }
+.rolecard.open.fascist, .rolecard.open.hitler { color: #fff; background: radial-gradient(120% 120% at 30% 0%, #7a2a22, #2a0e0b); }
+.rolecard.open.fascist .big, .rolecard.open.hitler .big { color: #ff9a8a; }
+.rolecard.open.fascist .muted, .rolecard.open.hitler .muted, .rolecard.open.fascist .goal, .rolecard.open.hitler .goal { color: #f2d0c9; }
+.goal { max-width: 30em; margin: 6px auto 0; font-size: 15px; }
+.extra { margin-top: 10px; padding-top: 10px; border-top: 1px dashed currentColor; font-size: 15px; }
+.seal { display: inline-grid; place-items: center; width: 54px; height: 54px; margin: 2px auto 8px; border-radius: 50%; background: #2a2f4a; color: var(--parch); font: 800 22px var(--display); }
+#roleBtn { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); color: #2a2f4a; background: rgba(42,47,74,.1); box-shadow: inset 0 0 0 1.5px rgba(42,47,74,.25); }
+.rolecard.open.fascist #roleBtn, .rolecard.open.hitler #roleBtn { color: #fff; background: rgba(255,255,255,.12); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.3); }
+
+#msg { text-align: center; margin: 12px 0 8px; font-weight: 700; }
+.center { text-align: center; }
+.votebtns { display: flex; gap: 10px; } .votebtns button { flex: 1; margin: 0; font-size: 20px; padding: 16px; }
+.votebtns .yes { background: var(--mint); color: #00301c; box-shadow: 0 6px 18px -8px rgba(61,220,151,.9); }
+.hand { display: flex; justify-content: center; gap: 10px; margin: 6px 0 10px; }
+.pick { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0; margin: 0; background: none; box-shadow: none; color: var(--chalk); }
+.pick .act { font-size: 14px; padding: 4px 12px; border-radius: 999px; background: var(--panel); box-shadow: inset 0 0 0 1.5px var(--line); }
+.policy { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; width: 84px; height: 118px; border-radius: 10px;
+  box-shadow: inset 0 0 0 4px rgba(255,255,255,.85), 0 12px 20px -10px rgba(0,0,0,.9); color: #fff; }
+.policy.lib { background: var(--lib); } .policy.fas { background: var(--fas); }
+.policy .sym { transform: scale(1.4); }
+.policy.lib .sym { width: 26px; }
+.policy .pw { font: 800 13px var(--display); letter-spacing: .02em; }
+
+#players { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.pc { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 0; padding: 12px 6px 10px; border-radius: 16px;
+  color: var(--chalk); background: rgba(255,255,255,.07); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.08); font: 400 14px/1.2 var(--body); text-align: center; }
+.pc:disabled { opacity: 1; cursor: default; }
+.pc.can { background: rgba(255,182,72,.14); box-shadow: inset 0 0 0 2px var(--lamp); cursor: pointer; }
+.pc.pres { box-shadow: inset 0 0 0 2px var(--parch); }
+.pc.dead { opacity: .4; }
+.pc.dead .face { background: #444 !important; }
+.pc.liberal { box-shadow: inset 0 0 0 2px var(--lib); } .pc.fascist { box-shadow: inset 0 0 0 2px var(--fas); }
+.pc.hitler { box-shadow: inset 0 0 0 3px var(--fas); background: rgba(224,83,63,.18); }
+.pc .face { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; font: 800 18px var(--display); color: #fff; background: var(--c); }
+.pc .pn { font-weight: 700; }
+.pc .pt { font-size: 12px; color: rgba(238,241,247,.72); min-height: 14px; }
+.lv { position: absolute; top: 6px; right: 6px; font: 700 11px var(--body); padding: 1px 7px; border-radius: 999px; }
+.lv.y { background: var(--mint); color: #00301c; } .lv.n { background: var(--coral); color: #2b0010; }
+.banner { padding: 14px; border-radius: 16px; text-align: center; margin: 10px 0; }
+.banner.liberal { background: rgba(74,143,224,.25); box-shadow: inset 0 0 0 2px var(--lib); }
+.banner.fascist { background: rgba(224,83,63,.22); box-shadow: inset 0 0 0 2px var(--fas); }
+.credit { font-size: 13px; color: rgba(238,241,247,.6); margin: 18px 0 6px; }
+.credit a { color: rgba(238,241,247,.8); }
+.dock { display: flex; gap: 8px; } .dock button { flex: 1; margin: 0; }
+</style>
+</head>
+<body>
+<header class="topbar"><a class="back" href="../../" aria-label="Back to the arcade">‹</a><h1>Secret Hitler</h1></header>
+<div id="err"></div>
+
+<div id="join" class="screen on">
+  <div class="intro"><p>Liberals and Fascists fight over the government. Nobody knows who is on which side, and one of the Fascists is secretly Hitler. Elect governments, pass policies, and work out who to trust.</p></div>
+  <label for="name">Your name</label>
+  <input id="name" maxlength="20" placeholder="Name (optional)">
+  <button class="wide" onclick="hostGame()">Host a game</button>
+  <div class="or">or join one</div>
+  <input id="pinIn" placeholder="Paste the join link or code" aria-label="Join link or code">
+  <div id="joinHint" class="muted"></div>
+  <button class="wide ghost" onclick="joinGame()">Join</button>
+  <p class="muted">Easiest: scan the QR code on the host's phone. 5–10 players in the same room.</p>
+  <p class="credit">Based on <a href="https://www.secrethitler.com" rel="noopener">Secret Hitler</a> by Goat, Wolf, &amp; Cabbage, licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener">CC BY-NC-SA 4.0</a>. This free, non-commercial version is shared under the same licence; its texts and graphics are original.</p>
+</div>
+
+<div id="lobby" class="screen">
+  <div class="ticket">
+    <div>Scan to join</div>
+    <div id="qr" class="qr"></div>
+    <div id="joinLink" class="link"></div>
+    <button class="ghost small" id="copyBtn" onclick="copyLink()">Copy link</button>
+    <div class="pinline">Game PIN<div class="pin" id="pinShow"></div></div>
+  </div>
+  <div id="roster" class="row"></div>
+  <div class="muted">5–6 players: 1 Fascist and Hitler, who knows the Fascist. 7–8: 2 Fascists. 9–10: 3 Fascists. From 7 players, Hitler does not know who the Fascists are.</div>
+  <div id="lobbyErr" class="err"></div>
+  <div class="dock">
+    <button class="ghost" onclick="cancelGame()">Cancel</button>
+    <button onclick="startGame()">Start game</button>
+  </div>
+</div>
+
+<div id="waiting" class="screen">
+  <div class="panel" style="text-align:center">
+    <div class="muted">Game PIN</div>
+    <div class="pin" id="pinWait"></div>
+    <div id="roster2" class="row"></div>
+  </div>
+  <button class="wide ghost" onclick="exitGame()">Leave lobby</button>
+</div>
+
+<div id="game" class="screen">
+  <div id="banner" class="banner" style="display:none"></div>
+  <div class="boards">
+    <div class="track lib"><span class="name">Liberal policies</span><div class="slots" id="libTrack"></div></div>
+    <div class="track fas"><span class="name">Fascist policies</span><div class="slots" id="fasTrack"></div></div>
+  </div>
+  <div id="tracker"></div>
+  <div id="boardNote"></div>
+  <div class="rolecard sealed" id="roleCard">
+    <div id="role"></div>
+    <button class="ghost small" id="roleBtn" onclick="toggleRole()">Show my role</button>
+  </div>
+  <div id="msg"></div>
+  <div id="panel"></div>
+  <div id="players"></div>
+  <div class="dock"><button id="againBtn" onclick="playAgain()" style="display:none">New game</button></div>
+  <button class="ghost small" id="inviteBtn" onclick="toggleInvite()" style="display:none">Invite more players</button>
+  <div id="inviteBox" style="display:none">
+    <div class="ticket">
+      <div>New players watch this game and play the next one</div>
+      <div id="qr2" class="qr"></div>
+      <div id="joinLink2" class="link"></div>
+      <button class="ghost small" id="copyBtn2" onclick="copyLink()">Copy link</button>
+    </div>
+  </div>
+  <div id="log" class="log"></div>
+  <button class="ghost small" id="leaveBtn" onclick="leaveOrCancel()">Leave game</button>
+  <p class="credit">Based on <a href="https://www.secrethitler.com" rel="noopener">Secret Hitler</a> by Goat, Wolf, &amp; Cabbage, <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener">CC BY-NC-SA 4.0</a>.</p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+<script type="module" src="main.js?v=1795051101"></script>
+</body>
+</html>
