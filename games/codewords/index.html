@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Code Words · Arcade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../lib/theme.css?v=1795051616">
+<style>
+/* Briefing room: slate table, red and blue teams, cream word cards */
+:root { --table-1: #2f3540; --table-2: #14171d; --red: #e0473f; --blue: #3f7fe0; --card: #f1ead9; }
+body { transition: background .5s ease; }
+body[data-turn="red"] { background: radial-gradient(120% 60% at 50% 0%, #5a2b2e, #14171d 70%) fixed; }
+body[data-turn="blue"] { background: radial-gradient(120% 60% at 50% 0%, #26385e, #14171d 70%) fixed; }
+
+#score { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 8px; }
+.tm { padding: 10px 12px; border-radius: 16px; background: rgba(255,255,255,.05); }
+.tm .tn { font: 800 15px var(--display); }
+.tm.red .tn { color: #ff8a83; } .tm.blue .tn { color: #8db6ff; }
+.tm .big { margin: 2px 0; font-size: 30px; }
+.tm.now.red { box-shadow: inset 0 0 0 2.5px var(--red); } .tm.now.blue { box-shadow: inset 0 0 0 2.5px var(--blue); }
+
+#clueShow { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 10px 0; padding: 12px; border-radius: 16px; background: var(--card); color: #20242c; }
+#clueShow .cw { font: 800 28px/1 var(--display); letter-spacing: -.01em; }
+#clueShow .cn { display: grid; place-items: center; min-width: 38px; height: 38px; padding: 0 8px; border-radius: 999px; background: #20242c; color: var(--card); font: 800 20px var(--display); }
+#clueBox { display: grid; grid-template-columns: 1fr 86px; gap: 8px; align-items: end; }
+#clueBox button { grid-column: 1 / -1; margin: 0; }
+#msg { text-align: center; margin: 10px 0; font-weight: 700; }
+
+#board { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; margin: 6px 0; }
+.w { min-width: 0; margin: 0; padding: 0 2px; height: 58px; border-radius: 10px; font: 700 13px/1.1 var(--body); color: #20242c; background: var(--card);
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,.12); overflow: hidden; text-overflow: ellipsis; word-break: break-word; hyphens: auto; }
+.w.long { font-size: 11px; }
+.w:disabled { opacity: 1; cursor: default; }
+.w:not(:disabled) { cursor: pointer; }
+.w.pend { background: #ffd98a; box-shadow: inset 0 0 0 3px var(--lamp); transform: scale(1.04); }
+/* Revealed cards take their colour; unrevealed hints (spymaster key) show as a coloured edge */
+.w.rev.k-red { background: var(--red); color: #fff; } .w.rev.k-blue { background: var(--blue); color: #fff; }
+.w.rev.k-none { background: #b9b2a0; color: #4b473d; } .w.rev.k-trap { background: #111; color: #fff; }
+.w.rev { box-shadow: none; animation: flip .35s ease-out; }
+@keyframes flip { from { transform: rotateY(90deg); } }
+.w.hint.k-red { box-shadow: inset 0 0 0 4px var(--red); } .w.hint.k-blue { box-shadow: inset 0 0 0 4px var(--blue); }
+.w.hint.k-none { box-shadow: inset 0 0 0 4px #9a9282; opacity: .8; } .w.hint.k-trap { background: #2b2b2b; color: #fff; box-shadow: inset 0 0 0 4px #000; }
+.w.rev.hint { opacity: .55; }
+
+#teams { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.col { padding: 10px; border-radius: 14px; background: rgba(255,255,255,.05); font-size: 15px; }
+.col .tn { font: 800 15px var(--display); margin-bottom: 4px; }
+.col.red .tn { color: #ff8a83; } .col.blue .tn { color: #8db6ff; }
+.mem { padding: 2px 0; } .mem.spy { font-weight: 700; } .crown { color: var(--lamp); }
+#myTeam { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+#myTeam button { margin: 0; font-size: 15px; padding: 11px 8px; }
+#myTeam button.redb:not(.ghost) { background: var(--red); color: #fff; box-shadow: none; }
+#myTeam button.blueb:not(.ghost) { background: var(--blue); color: #fff; box-shadow: none; }
+#problem { margin: 8px 0; font-size: 15px; color: rgba(238,241,247,.8); }
+.dock { display: flex; gap: 8px; } .dock button { flex: 1; margin: 0; }
+</style>
+</head>
+<body>
+<header class="topbar"><a class="back" href="../../" aria-label="Back to the arcade">‹</a><h1>Code Words</h1></header>
+<div id="err"></div>
+
+<div id="join" class="screen on">
+  <div class="intro"><p>Two teams, 25 words. Only the spymasters know which words belong to their team. They give one-word clues; their teammates guess. Avoid the trap word!</p></div>
+  <label for="name">Your name</label>
+  <input id="name" maxlength="20" placeholder="Name (optional)">
+  <button class="wide" onclick="hostGame()">Host a game</button>
+  <div class="or">or join one</div>
+  <input id="pinIn" placeholder="Paste the join link or code" aria-label="Join link or code">
+  <div id="joinHint" class="muted"></div>
+  <button class="wide ghost" onclick="joinGame()">Join</button>
+  <p class="muted">Easiest: scan the QR code on the host's phone. 4 or more players, in two teams.</p>
+</div>
+
+<div id="lobby" class="screen">
+  <div class="ticket">
+    <div>Scan to join</div>
+    <div id="qr" class="qr"></div>
+    <div id="joinLink" class="link"></div>
+    <button class="ghost small" id="copyBtn" onclick="copyLink()">Copy link</button>
+    <div class="pinline">Game PIN<div class="pin" id="pinShow"></div></div>
+  </div>
+  <div id="roster" class="row"></div>
+  <label for="lang">Words</label>
+  <select id="lang"><option value="en">English</option><option value="no">Norwegian</option></select>
+  <div id="lobbyErr" class="err"></div>
+  <div class="dock">
+    <button class="ghost" onclick="cancelGame()">Cancel</button>
+    <button onclick="startGame()">Choose teams</button>
+  </div>
+</div>
+
+<div id="waiting" class="screen">
+  <div class="panel" style="text-align:center">
+    <div class="muted">Game PIN</div>
+    <div class="pin" id="pinWait"></div>
+    <div id="roster2" class="row"></div>
+  </div>
+  <button class="wide ghost" onclick="exitGame()">Leave lobby</button>
+</div>
+
+<div id="game" class="screen">
+  <div id="score"></div>
+  <div id="clueShow" style="display:none"></div>
+  <div id="clueBox" class="panel" style="display:none">
+    <div><label for="clueWord">Clue (one word)</label><input id="clueWord" maxlength="25" autocomplete="off" autocapitalize="off"></div>
+    <div><label for="clueCount">Number</label>
+      <select id="clueCount"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="0">∞</option></select></div>
+    <button onclick="giveClue()">Give clue</button>
+  </div>
+  <div id="msg"></div>
+  <div id="board"></div>
+  <div class="dock">
+    <button class="ghost" id="keyBtn" onclick="toggleKey()" style="display:none">Show the key</button>
+    <button id="stopBtn" onclick="stopGuessing()" style="display:none">Stop guessing</button>
+  </div>
+  <div id="setup" style="display:none">
+    <div class="label">Pick your team</div>
+    <div id="myTeam"></div>
+    <div id="problem"></div>
+    <div id="hostSetup">
+      <label for="lang2">Words</label>
+      <select id="lang2"><option value="en">English</option><option value="no">Norwegian</option></select>
+      <div class="dock" style="position:static;background:none;margin:8px 0 0;padding:0">
+        <button class="ghost" onclick="rotate()">Rotate spymasters</button>
+        <button id="startBtn" onclick="startRound()">Start round</button>
+      </div>
+    </div>
+  </div>
+  <div class="label">Teams</div>
+  <div id="teams"></div>
+  <button class="ghost small" id="inviteBtn" onclick="toggleInvite()" style="display:none">Invite more players</button>
+  <div id="inviteBox" style="display:none">
+    <div class="ticket">
+      <div>New players join the smaller team</div>
+      <div id="qr2" class="qr"></div>
+      <div id="joinLink2" class="link"></div>
+      <button class="ghost small" id="copyBtn2" onclick="copyLink()">Copy link</button>
+    </div>
+  </div>
+  <div id="log" class="log"></div>
+  <button class="ghost small" id="leaveBtn" onclick="leaveOrCancel()">Leave game</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+<script type="module" src="main.js?v=1795051616"></script>
+</body>
+</html>
