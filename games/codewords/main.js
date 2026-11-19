@@ -1,12 +1,12 @@
 // Code Words UI and networking. The host runs the engine; players send actions and render what the host sends.
 // Sessions are kept in sessionStorage so a refresh rejoins the same game in the same tab.
-import { createGame, newRound, act, setTeam, rotateSpymasters, leave, addPlayer, view, secretFor, TEAMS, MIN_PLAYERS, MAX_PLAYERS } from './engine.js?v=1795051616';
+import { createGame, newRound, act, setTeam, rotateSpymasters, leave, addPlayer, view, secretFor, TEAMS, MIN_PLAYERS, MAX_PLAYERS } from './engine.js?v=1795129607';
 
 const $ = id => document.getElementById(id);
 let libs = null;
 function showErr(t) { $('err').textContent = t || ''; }
 // Load networking separately so the buttons still work (and show errors) if it fails.
-import('../../lib/lobby.js?v=1795051616')
+import('../../lib/lobby.js?v=1795129607')
   .then(m => { libs = m; if (!joinFromHash()) resume(); })
   .catch(e => showErr('Networking failed to load: ' + e.message + '. Check your connection and reload.'));
 

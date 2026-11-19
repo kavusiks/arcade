@@ -4,11 +4,11 @@
 // words belong to Red, which to Blue, which are bystanders, and which one is the trap.
 // The starting team has 9 words, the other 8; there are 7 bystanders and 1 trap.
 // On a turn, the spymaster gives a one-word clue and a number. Teammates guess words one at a time:
-//   - their own word: they may keep guessing (up to the number + 1, or unlimited if the number is 0 or ∞)
+//   - their own word: they may keep guessing, up to exactly the clue's number (unlimited if the number is 0, shown as ∞)
 //   - a bystander or the other team's word: the turn ends
 //   - the trap: their team loses at once
 // A team can stop guessing after at least one guess. The first team to reveal all its words wins.
-import { WORDS } from './words.js?v=1795051616';
+import { WORDS } from './words.js?v=1795129607';
 
 export const TEAMS = ['red', 'blue'];
 export const MIN_PLAYERS = 4, MAX_PLAYERS = 16;
@@ -117,7 +117,7 @@ export function act(G, i, a) {
     if (left(G, 'blue') === 0) { end(G, 'blue', 'Blue found all its words and wins!'); return { ok: true }; }
     if (k === G.turn) {
       log(G, nm(G, i) + ' picks "' + w + '": correct!');
-      const max = G.clue.count === 0 ? Infinity : G.clue.count + 1;
+      const max = G.clue.count === 0 ? Infinity : G.clue.count; // the number is the number of guesses
       if (G.guesses >= max) { log(G, 'No guesses left.'); passTurn(G); }
     } else {
       log(G, nm(G, i) + ' picks "' + w + '": ' + (k === 'none' ? 'a bystander.' : teamName(k) + "'s word.") + ' The turn passes.');
